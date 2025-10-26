@@ -69,13 +69,37 @@ const DashboardPage = () => {
                 <h2 className="text-2xl font-semibold mb-2">{test.title}</h2>
                 <p className="text-gray-600 mb-4">{test.description}</p>
                 <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                  <span>{test.questions.length} Questions</span>
+                  <span>
+                    {test.sections && test.sections.length > 0 
+                      ? `${test.sections.reduce((sum, section) => sum + section.questions.length, 0)} Questions (${test.sections.length} Sections)`
+                      : `${test.questions?.length || 0} Questions`
+                    }
+                  </span>
                   <span>{test.duration} Minutes</span>
                 </div>
+                
+                {test.allowResume && (
+                  <div className="mb-3 p-2 bg-blue-50 rounded text-xs text-blue-700">
+                    ✓ Resume enabled
+                  </div>
+                )}
+                
                 <div className="mt-4 space-y-2">
-                    <button onClick={() => copyToClipboard(shareableLink)} className="w-full text-center bg-green-100 text-green-700 px-4 py-2 rounded-lg hover:bg-green-200 transition">
-                        Copy Share Link
-                    </button>
+                    {test.shareableLink ? (
+                      <button 
+                        onClick={() => copyToClipboard(`${window.location.origin}/test/share/${test.shareableLink}`)} 
+                        className="w-full text-center bg-green-100 text-green-700 px-4 py-2 rounded-lg hover:bg-green-200 transition"
+                      >
+                        Copy Shareable Link
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => copyToClipboard(shareableLink)} 
+                        className="w-full text-center bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition"
+                      >
+                        Copy Direct Link
+                      </button>
+                    )}
                     <Link to={`/results/${test._id}`} className="block w-full text-center bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-200 transition">
                         View Results
                     </Link>

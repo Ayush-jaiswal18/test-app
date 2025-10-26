@@ -6,6 +6,12 @@ const resultSchema = new mongoose.Schema({
     required: [true, "Please enter the student's name"],
     trim: true,
   },
+  studentEmail: {
+    type: String,
+    required: [true, "Please enter the student's email"],
+    trim: true,
+    lowercase: true,
+  },
   rollNumber: {
     type: String,
     required: [true, "Please enter the student's roll number"],
@@ -24,10 +30,23 @@ const resultSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  // Support both old format (questionIndex) and new format (sectionIndex + questionIndex)
   answers: [{
+    sectionIndex: {
+      type: Number,
+      default: 0, // For backward compatibility
+    },
     questionIndex: Number,
     selectedOption: Number,
-  }, ],
+  }],
+  timeSpent: {
+    type: Number,
+    default: 0, // Total time spent in seconds
+  },
+  isResumed: {
+    type: Boolean,
+    default: false, // Track if test was resumed
+  },
 }, {
   timestamps: true
 });

@@ -1,22 +1,64 @@
 const Test = require('../models/testModel');
+const crypto = require('crypto');
 
 // @desc    Create a new test
 // @route   POST /api/tests
 // @access  Private (Admin)
 exports.createTest = async (req, res) => {
-  const { title, description, duration, questions } = req.body;
+  const { title, description, duration, questions, sections, allowResume } = req.body;
   
   try {
-    const test = await Test.create({
+    // Validate required fields
+    if (!title || !description || !duration) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Please provide title, description, and duration' 
+      });
+    }
+
+    // Ensure at least questions or sections are provided
+    if ((!questions || questions.length === 0) && (!sections || sections.length === 0)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Please provide at least one question or section' 
+      });
+    }
+
+    const testData = {
       title,
       description,
-      duration,
-      questions,
+      duration: Number(duration),
+      allowResume: allowResume !== undefined ? allowResume : true,
       createdBy: req.admin._id,
-    });
+      isPublic: false, // Default to false
+    };
+
+    // Add questions or sections based on what's provided
+    if (sections && sections.length > 0) {
+      testData.sections = sections;
+      testData.questions = []; // Empty array for backward compatibility
+    } else {
+      testData.questions = questions || [];
+      testData.sections = []; // Empty array for new format
+    }
+
+    // Don't include shareableLink field when creating - it will be added later when needed
+
+    console.log('Creating test with data:', JSON.stringify(testData, null, 2));
+    
+    const test = await Test.create(testData);
     res.status(201).json({ success: true, data: test });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+    console.error('Test creation error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server Error', 
+      error: error.message,
+      details: error.errors ? Object.keys(error.errors).map(key => ({
+        field: key,
+        message: error.errors[key].message
+      })) : []
+    });
   }
 };
 
@@ -29,6 +71,29 @@ exports.getAllTestsForAdmin = async (req, res) => {
     res.status(200).json({ success: true, count: tests.length, data: tests });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// @desc    Get a single test by ID (for admin editing)
+// @route   GET /api/tests/:id
+// @access  Private (Admin)
+exports.getTestByIdForAdmin = async (req, res) => {
+  try {
+    const test = await Test.findById(req.params.id);
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found' });
+    }
+
+    // Make sure admin is the owner
+    if (test.createdBy.toString() !== req.admin._id.toString()) {
+      return res.status(401).json({ success: false, message: 'Not authorized to view this test' });
+    }
+
+    // Return full test data including correct answers for admin
+    res.status(200).json({ success: true, data: test });
+  } catch (error) {
+    console.error('Error fetching test for admin:', error);
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
   }
 };
 
@@ -72,6 +137,71 @@ exports.updateTest = async (req, res) => {
     });
 
     res.status(200).json({ success: true, data: test });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// @desc    Generate shareable link for a test
+// @route   POST /api/tests/:id/share
+// @access  Private (Admin)
+exports.generateShareableLink = async (req, res) => {
+  try {
+    const test = await Test.findById(req.params.id);
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found' });
+    }
+
+    // Make sure admin is the owner
+    if (test.createdBy.toString() !== req.admin._id.toString()) {
+      return res.status(401).json({ success: false, message: 'Not authorized to share this test' });
+    }
+
+    // Generate unique shareable link
+    const shareableLink = crypto.randomBytes(16).toString('hex');
+    
+    test.shareableLink = shareableLink;
+    test.isPublic = true;
+    await test.save();
+
+    const shareUrl = `${req.protocol}://${req.get('host')}/test/share/${shareableLink}`;
+
+    res.status(200).json({ 
+      success: true, 
+      data: { 
+        shareableLink: shareableLink,
+        shareUrl: shareUrl,
+        testId: test._id 
+      } 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+  }
+};
+
+// @desc    Get test by shareable link
+// @route   GET /api/tests/share/:shareLink
+// @access  Public
+exports.getTestByShareLink = async (req, res) => {
+  try {
+    const test = await Test.findOne({ shareableLink: req.params.shareLink, isPublic: true });
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found or link has expired' });
+    }
+
+    // Remove correct answers before sending to student
+    const testForStudent = { ...test.toObject() };
+    
+    // Handle both old questions format and new sections format
+    if (testForStudent.sections && testForStudent.sections.length > 0) {
+      testForStudent.sections.forEach(section => {
+        section.questions.forEach(q => delete q.correctAnswer);
+      });
+    } else if (testForStudent.questions && testForStudent.questions.length > 0) {
+      testForStudent.questions.forEach(q => delete q.correctAnswer);
+    }
+
+    res.status(200).json({ success: true, data: testForStudent });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server Error' });
   }

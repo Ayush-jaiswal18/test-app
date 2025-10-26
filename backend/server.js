@@ -25,6 +25,7 @@ app.get('/', (req, res) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/tests', require('./routes/testRoutes'));
 app.use('/api/results', require('./routes/resultRoutes'));
+app.use('/api/progress', require('./routes/progressRoutes'));
 
 
 // Define the port

@@ -19,6 +19,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/test/:testId" element={<TestPage />} />
+          <Route path="/test/share/:shareLink" element={<TestPage />} />
 
           {/* Private Admin Routes */}
           <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />

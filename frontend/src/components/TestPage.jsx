@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
+import Proctoring from './Proctoring';
 
 const TestPage = () => {
   const { testId, shareLink } = useParams();
@@ -577,6 +578,7 @@ const TestPage = () => {
 
     return (
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
+        <Proctoring />
         <div className="flex justify-between items-center mb-6 border-b pb-4">
           <div>
             <h1 className="text-2xl font-bold">{test.title}</h1>

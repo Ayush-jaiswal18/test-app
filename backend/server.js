@@ -17,6 +17,7 @@ const app = express();
 app.use(cors()); // Enable Cross-Origin Resource Sharing
 app.use(express.json()); // To parse JSON request bodies
 
+
 // API Routes
 app.get('/', (req, res) => {
   res.send('Online Test Platform API is running...');
@@ -27,6 +28,14 @@ app.use('/api/tests', require('./routes/testRoutes'));
 app.use('/api/results', require('./routes/resultRoutes'));
 app.use('/api/progress', require('./routes/progressRoutes'));
 
+// Proctoring endpoint
+app.post("/api/report", (req, res) => {
+  const { event, time } = req.body;
+  console.log(`🚨 [${time}] ${event}`);
+  // You can also save this in MongoDB:
+  // await ProctorLog.create({ event, time });
+  res.json({ status: "logged" });
+});
 
 // Define the port
 const PORT = process.env.PORT || 5000;

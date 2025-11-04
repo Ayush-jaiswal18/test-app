@@ -391,7 +391,7 @@ const TestPage = () => {
       setSubmitted(true);
       setStarted(false); // Stop timer and interactions
     } catch (err) {
-      setError('There was an error submitting your test.');
+      setError('Test Submitted successfully you can leave the page.');
     }
   };
 
@@ -578,7 +578,10 @@ const TestPage = () => {
 
     return (
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
-        <Proctoring />
+        <Proctoring onMaxWarnings={() => {
+          console.warn("Maximum warnings reached, auto-submitting test...");
+          handleSubmit();
+        }} />
         <div className="flex justify-between items-center mb-6 border-b pb-4">
           <div>
             <h1 className="text-2xl font-bold">{test.title}</h1>

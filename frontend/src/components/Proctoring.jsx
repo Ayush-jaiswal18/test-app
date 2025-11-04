@@ -5,9 +5,12 @@ import * as cam from "@mediapipe/camera_utils";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import '@tensorflow/tfjs';
 
-const Proctoring = () => {
+const Proctoring = ({ onMaxWarnings }) => {
   const objectDetectorRef = useRef(null);
   const detectionIntervalRef = useRef(null);
+  const warningCountRef = useRef(0);
+  const WARNING_THRESHOLD = 5;
+  const MAX_WARNINGS = 6;
 
   useEffect(() => {
     const videoElement = document.getElementById("webcam");
@@ -131,6 +134,23 @@ const Proctoring = () => {
       severity = "medium";
     }
 
+    // Increment warning count for severe violations
+    if (severity === "high" || severity === "medium") {
+      warningCountRef.current += 1;
+      console.warn(`Warning count: ${warningCountRef.current}/${MAX_WARNINGS}`);
+      
+      // At 5 warnings, show final warning alert
+      if (warningCountRef.current === WARNING_THRESHOLD) {
+        alert("⚠️ FINAL WARNING: You have reached 5 warnings. The next violation will automatically submit your test.");
+      }
+      
+      // Auto-submit at 6 warnings without additional alert
+      if (warningCountRef.current >= MAX_WARNINGS) {
+        console.warn("Maximum warnings reached!");
+        onMaxWarnings?.();
+      }
+    }
+
     setWarning(type);
     setWarningSeverity(severity);
     setWarningVisible(true);
@@ -177,9 +197,11 @@ const Proctoring = () => {
   };
 
   return (
-    <div className="flex flex-col items-center w-full">
-      <video id="webcam" autoPlay playsInline width="320" height="240" className="w-full h-auto"></video>
-      <canvas id="output" width="320" height="240" className="w-full h-auto"></canvas>
+    <div className="fixed top-4 right-4 z-50 w-64">
+      <div className="relative">
+        <video id="webcam" autoPlay playsInline width="320" height="240" className="w-full h-auto rounded-lg shadow-lg"></video>
+        <canvas id="output" width="320" height="240" className="absolute top-0 left-0 w-full h-full rounded-lg"></canvas>
+      </div>
       {warningVisible && (
         <div className={`px-3 py-1 rounded mt-2 flex items-center text-sm w-full ${
           warningSeverity === "high" 
@@ -195,9 +217,14 @@ const Proctoring = () => {
           {warning}
         </div>
       )}
-      <div className="flex justify-between w-full mt-2">
-        <p className="text-gray-700 text-sm">🧠 AI Proctoring Active</p>
-        <p className="text-gray-700 text-sm">📱 Phone Detection Active</p>
+      <div className="flex justify-between w-full mt-2 bg-black bg-opacity-50 rounded-b-lg px-2 py-1">
+        <p className="text-white text-xs">🧠 AI Proctoring</p>
+        <div className="flex items-center">
+          <p className={`text-white text-xs mr-2 ${warningCountRef.current >= WARNING_THRESHOLD ? 'animate-pulse text-red-400' : ''}`}>
+            ⚠️ {warningCountRef.current}/{MAX_WARNINGS}
+          </p>
+          <p className="text-white text-xs">📱 Detection</p>
+        </div>
       </div>
     </div>
   );

@@ -1,14 +1,20 @@
 // src/components/Proctoring.js
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import * as faceDetection from "@mediapipe/face_detection";
 import * as cam from "@mediapipe/camera_utils";
+import * as cocoSsd from "@tensorflow-models/coco-ssd";
+import '@tensorflow/tfjs';
 
 const Proctoring = () => {
+  const objectDetectorRef = useRef(null);
+  const detectionIntervalRef = useRef(null);
+
   useEffect(() => {
     const videoElement = document.getElementById("webcam");
     const canvasElement = document.getElementById("output");
     const canvasCtx = canvasElement.getContext("2d");
 
+    // Initialize face detector with improved settings
     const detector = new faceDetection.FaceDetection({
       locateFile: (file) =>
         `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`,
@@ -16,8 +22,19 @@ const Proctoring = () => {
 
     detector.setOptions({
       model: "short",
-      minDetectionConfidence: 0.6,
+      minDetectionConfidence: 0.7, // Increased confidence threshold
     });
+
+    // Initialize COCO-SSD model for object detection
+    const loadObjectDetector = async () => {
+      try {
+        objectDetectorRef.current = await cocoSsd.load();
+        console.log("Object detection model loaded");
+      } catch (err) {
+        console.error("Error loading object detection model:", err);
+      }
+    };
+    loadObjectDetector();
 
     let lastReportTime = 0;
     const REPORT_INTERVAL = 3000; // Report every 3 seconds to avoid spam
@@ -40,7 +57,7 @@ const Proctoring = () => {
         }
       }
 
-      // Draw detection boxes
+      // Draw face detection boxes
       if (faces > 0) {
         results.detections.forEach(detection => {
           const bbox = detection.boundingBox;
@@ -54,10 +71,36 @@ const Proctoring = () => {
           );
         });
       }
+
+      // Run object detection for mobile phones
+      if (objectDetectorRef.current) {
+        objectDetectorRef.current.detect(videoElement).then(predictions => {
+          predictions.forEach(prediction => {
+            if (prediction.class === 'cell phone' && prediction.score > 0.6) {
+              // Draw red box around detected phone
+              canvasCtx.strokeStyle = '#FF0000';
+              canvasCtx.lineWidth = 2;
+              canvasCtx.strokeRect(
+                prediction.bbox[0],
+                prediction.bbox[1],
+                prediction.bbox[2],
+                prediction.bbox[3]
+              );
+              
+              // Report mobile phone detection
+              reportEvent("Mobile phone detected");
+            }
+          });
+        }).catch(err => {
+          console.error("Object detection error:", err);
+        });
+      }
     });
 
     const camera = new cam.Camera(videoElement, {
-      onFrame: async () => await detector.send({ image: videoElement }),
+      onFrame: async () => {
+        await detector.send({ image: videoElement });
+      },
       width: 640,
       height: 480
     });
@@ -75,16 +118,27 @@ const Proctoring = () => {
 
   const [warning, setWarning] = React.useState("");
   const [warningVisible, setWarningVisible] = React.useState(false);
+  const [warningSeverity, setWarningSeverity] = React.useState("low"); // low, medium, high
 
   const reportEvent = async (type) => {
     console.warn(type);
+    
+    // Set warning severity based on type
+    let severity = "low";
+    if (type.includes("Multiple faces") || type.includes("Mobile phone")) {
+      severity = "high";
+    } else if (type.includes("No face")) {
+      severity = "medium";
+    }
+
     setWarning(type);
+    setWarningSeverity(severity);
     setWarningVisible(true);
     
-    // Hide warning after 3 seconds
+    // Hide warning after 5 seconds for high severity, 3 for others
     setTimeout(() => {
       setWarningVisible(false);
-    }, 3000);
+    }, severity === "high" ? 5000 : 3000);
 
     await fetch("http://localhost:5000/api/report", {
       method: "POST",
@@ -127,12 +181,24 @@ const Proctoring = () => {
       <video id="webcam" autoPlay playsInline width="320" height="240" className="w-full h-auto"></video>
       <canvas id="output" width="320" height="240" className="w-full h-auto"></canvas>
       {warningVisible && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-1 rounded mt-2 flex items-center text-sm w-full">
-          <span className="mr-2">⚠️</span>
+        <div className={`px-3 py-1 rounded mt-2 flex items-center text-sm w-full ${
+          warningSeverity === "high" 
+            ? "bg-red-100 border border-red-400 text-red-700" 
+            : warningSeverity === "medium"
+            ? "bg-yellow-100 border border-yellow-400 text-yellow-700"
+            : "bg-blue-100 border border-blue-400 text-blue-700"
+        }`}>
+          <span className="mr-2">{
+            warningSeverity === "high" ? "🚫" : 
+            warningSeverity === "medium" ? "⚠️" : "ℹ️"
+          }</span>
           {warning}
         </div>
       )}
-      <p className="text-gray-700 mt-2 text-sm">🧠 AI Proctoring Active...</p>
+      <div className="flex justify-between w-full mt-2">
+        <p className="text-gray-700 text-sm">🧠 AI Proctoring Active</p>
+        <p className="text-gray-700 text-sm">📱 Phone Detection Active</p>
+      </div>
     </div>
   );
 };

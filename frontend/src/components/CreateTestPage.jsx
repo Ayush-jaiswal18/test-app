@@ -12,18 +12,17 @@ const CreateTestPage = () => {
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(10);
   const [allowResume, setAllowResume] = useState(true);
-  const [useSections, setUseSections] = useState(true); // Always use sections, hide the option
   
-  // Sectioned questions (now the only format)
   const [sections, setSections] = useState([
     { 
-      sectionTitle: 'Section 1', // Auto-generated 
-      sectionDescription: '', // Always empty
-      timeLimit: null, // No time limits
-      questions: [{ questionText: '', options: ['', '', '', ''], correctAnswer: 0 }]
+      sectionTitle: 'Section 1',
+      sectionDescription: '',
+      timeLimit: null,
+      questions: [], // Start with empty - MCQ questions are optional
+      codingQuestions: [] // Coding questions are also optional
     }
   ]);
-  
+
   const [shareableLink, setShareableLink] = useState('');
   const [error, setError] = useState('');
 
@@ -39,36 +38,16 @@ const CreateTestPage = () => {
           setTitle(testData.title);
           setDescription(testData.description);
           setDuration(testData.duration);
-          setAllowResume(testData.allowResume !== undefined ? testData.allowResume : true);
+          setAllowResume(testData.allowResume ?? true);
           setShareableLink(testData.shareableLink || '');
           
-          if (testData.sections && testData.sections.length > 0) {
-            // Test already has sections - ensure auto-generated titles
+          if (testData.sections?.length > 0) {
             const sectionsWithTitles = testData.sections.map((section, index) => ({
               ...section,
-              sectionTitle: `Section ${index + 1}`, // Auto-generate title
-              sectionDescription: '', // Clear description
-              timeLimit: null // Clear time limit
+              sectionTitle: section.sectionTitle || `Section ${index + 1}`,
+              codingQuestions: section.codingQuestions || []
             }));
             setSections(sectionsWithTitles);
-          } else if (testData.questions && testData.questions.length > 0) {
-            // Convert traditional test to sectioned format with auto-generated title
-            setSections([{
-              sectionTitle: 'Section 1', // Auto-generated
-              sectionDescription: '', // Empty description
-              timeLimit: null, // No time limit
-              questions: testData.questions
-            }]);
-          } else {
-            // No questions at all, use default with auto-generated title
-            setSections([
-              { 
-                sectionTitle: 'Section 1', // Auto-generated
-                sectionDescription: '', // Empty description
-                timeLimit: null, // No time limit
-                questions: [{ questionText: '', options: ['', '', '', ''], correctAnswer: 0 }]
-              }
-            ]);
           }
         } catch (err) {
           setError('Failed to fetch test data for editing.');
@@ -78,112 +57,128 @@ const CreateTestPage = () => {
     }
   }, [testId, isEditing, API_URL]);
 
-  // Section handlers
+  // Section Handlers
+  const addSection = () => {
+    setSections([...sections, {
+      sectionTitle: `Section ${sections.length + 1}`,
+      sectionDescription: '',
+      timeLimit: null,
+      questions: [{ questionText: '', options: ['', '', '', ''], correctAnswer: 0 }],
+      codingQuestions: []
+    }]);
+  };
+
+  const removeSection = (sIndex) => {
+    if (sections.length > 1) {
+      const values = sections.filter((_, index) => index !== sIndex);
+      setSections(values);
+    } else {
+      alert('At least one section is required');
+    }
+  };
+
   const handleSectionChange = (sIndex, field, value) => {
     const values = [...sections];
     values[sIndex][field] = value;
     setSections(values);
   };
 
-  const handleSectionQuestionChange = (sIndex, qIndex, event) => {
+  // MCQ Question Handlers
+  const addQuestion = (sIndex) => {
     const values = [...sections];
-    values[sIndex].questions[qIndex][event.target.name] = event.target.value;
+    values[sIndex].questions.push({
+      questionText: '',
+      options: ['', '', '', ''],
+      correctAnswer: 0
+    });
     setSections(values);
   };
 
-  const handleSectionOptionChange = (sIndex, qIndex, oIndex, event) => {
+  const removeQuestion = (sIndex, qIndex) => {
     const values = [...sections];
-    values[sIndex].questions[qIndex].options[oIndex] = event.target.value;
+    values[sIndex].questions.splice(qIndex, 1);
     setSections(values);
   };
 
-  const handleSectionCorrectAnswerChange = (sIndex, qIndex, event) => {
+  const handleQuestionChange = (sIndex, qIndex, field, value) => {
     const values = [...sections];
-    values[sIndex].questions[qIndex].correctAnswer = parseInt(event.target.value);
+    values[sIndex].questions[qIndex][field] = value;
     setSections(values);
   };
 
-  const addSection = () => {
-    setSections([...sections, {
-      sectionTitle: `Section ${sections.length + 1}`, // Auto-generated title
-      sectionDescription: '', // Empty description
-      timeLimit: null, // No time limit
-      questions: [{ questionText: '', options: ['', '', '', ''], correctAnswer: 0 }]
-    }]);
-  };
-
-  const removeSection = (index) => {
-    if (sections.length > 1) {
-      const values = [...sections];
-      values.splice(index, 1);
-      setSections(values);
-    }
-  };
-
-  const addSectionQuestion = (sIndex) => {
+  const handleOptionChange = (sIndex, qIndex, oIndex, value) => {
     const values = [...sections];
-    values[sIndex].questions.push({ questionText: '', options: ['', '', '', ''], correctAnswer: 0 });
+    values[sIndex].questions[qIndex].options[oIndex] = value;
     setSections(values);
   };
 
-  const removeSectionQuestion = (sIndex, qIndex) => {
+  // Coding Question Handlers
+  const addCodingQuestion = (sIndex) => {
     const values = [...sections];
-    if (values[sIndex].questions.length > 1) {
-      values[sIndex].questions.splice(qIndex, 1);
-      setSections(values);
-    }
+    values[sIndex].codingQuestions.push({
+      title: '',
+      description: '',
+      starterCode: '// write your code here',
+      language: 'javascript',
+      testCases: []
+    });
+    setSections(values);
   };
 
-  const generateShareableLink = async () => {
-    if (!testId) {
-      setError('Please save the test first before generating a shareable link.');
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.post(`${API_URL}/api/tests/${testId}/share`, {}, config);
-      setShareableLink(response.data.data.shareableLink);
-      alert('Shareable link generated successfully!');
-    } catch (err) {
-      setError('Failed to generate shareable link.');
-    }
+  const removeCodingQuestion = (sIndex, cqIndex) => {
+    const values = [...sections];
+    values[sIndex].codingQuestions.splice(cqIndex, 1);
+    setSections(values);
   };
 
+  const handleCodingQuestionChange = (sIndex, cqIndex, field, value) => {
+    const values = [...sections];
+    values[sIndex].codingQuestions[cqIndex][field] = value;
+    setSections(values);
+  };
+
+  // Test Case Handlers
+  const addTestCase = (sIndex, cqIndex) => {
+    const values = [...sections];
+    if (!values[sIndex].codingQuestions[cqIndex].testCases) {
+      values[sIndex].codingQuestions[cqIndex].testCases = [];
+    }
+    values[sIndex].codingQuestions[cqIndex].testCases.push({
+      input: '',
+      expectedOutput: '',
+      weight: 1
+    });
+    setSections(values);
+  };
+
+  const removeTestCase = (sIndex, cqIndex, tcIndex) => {
+    const values = [...sections];
+    values[sIndex].codingQuestions[cqIndex].testCases.splice(tcIndex, 1);
+    setSections(values);
+  };
+
+  const handleTestCaseChange = (sIndex, cqIndex, tcIndex, field, value) => {
+    const values = [...sections];
+    values[sIndex].codingQuestions[cqIndex].testCases[tcIndex][field] = value;
+    setSections(values);
+  };
+
+  // Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate data before submission
-    if (!title.trim() || !description.trim() || duration < 1) {
-      setError('Please fill in all required fields with valid data.');
-      return;
-    }
-
-    // Validate sections
-    const hasValidSections = sections.some(section => 
-      section.questions.some(q => 
-        q.questionText.trim() && 
-        q.options.every(opt => opt.trim()) &&
-        q.options.length >= 2
-      )
-    );
-    if (!hasValidSections) {
-      setError('Please ensure you have at least one complete question with all options filled.');
-      return;
-    }
 
     const testData = {
       title: title.trim(),
       description: description.trim(),
       duration: Number(duration),
       allowResume,
-      questions: [], // Always empty for sectioned tests
-      sections: sections
+      questions: [],
+      sections: sections.map(s => ({
+        ...s,
+        codingQuestions: s.codingQuestions || []
+      }))
     };
-    
-    console.log('Submitting test data:', testData);
-    
+
     const token = localStorage.getItem('token');
     const config = { headers: { Authorization: `Bearer ${token}` } };
 
@@ -194,24 +189,12 @@ const CreateTestPage = () => {
       } else {
         const response = await axios.post(`${API_URL}/api/tests`, testData, config);
         alert('Test created successfully!');
-        // Navigate to edit mode to allow generating shareable link
         navigate(`/edit-test/${response.data.data._id}`);
         return;
       }
       navigate('/dashboard');
     } catch (err) {
-      console.error('Full error object:', err);
-      console.error('Error response:', err.response?.data);
-      
-      const errorMessage = err.response?.data?.message || 'An error occurred. Please check your data and try again.';
-      const errorDetails = err.response?.data?.details;
-      
-      if (errorDetails && errorDetails.length > 0) {
-        const detailsMessage = errorDetails.map(detail => `${detail.field}: ${detail.message}`).join(', ');
-        setError(`${errorMessage}. Details: ${detailsMessage}`);
-      } else {
-        setError(errorMessage);
-      }
+      setError('An error occurred while saving the test.');
     }
   };
 
@@ -219,161 +202,314 @@ const CreateTestPage = () => {
     <div className="bg-white p-8 rounded-lg shadow-lg max-w-6xl mx-auto">
       <h2 className="text-3xl font-bold mb-6 text-center">{isEditing ? 'Edit Test' : 'Create a New Test'}</h2>
       {error && <p className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</p>}
-      
+
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div>
-            <label className="block text-gray-700 mb-2">Title</label>
-            <input 
-              type="text" 
-              value={title} 
-              onChange={(e) => setTitle(e.target.value)} 
-              className="w-full p-2 border rounded" 
-              required 
+        {/* Basic Test Information */}
+        <div className="mb-6">
+          <div className="mb-4">
+            <label className="block text-gray-700 font-semibold mb-2">Test Title *</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              className="w-full p-2 border rounded"
+              placeholder="Enter test title"
             />
           </div>
-          <div>
-            <label className="block text-gray-700 mb-2">Duration (in minutes)</label>
-            <input 
-              type="number" 
-              value={duration} 
-              onChange={(e) => setDuration(e.target.value)} 
-              className="w-full p-2 border rounded" 
-              required 
-              min="1" 
+
+          <div className="mb-4">
+            <label className="block text-gray-700 font-semibold mb-2">Description *</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+              className="w-full p-2 border rounded"
+              rows={3}
+              placeholder="Enter test description"
             />
           </div>
-        </div>
 
-        <div className="mb-4">
-          <label className="block text-gray-700 mb-2">Description</label>
-          <textarea 
-            value={description} 
-            onChange={(e) => setDescription(e.target.value)} 
-            className="w-full p-2 border rounded" 
-            required
-          ></textarea>
-        </div>
-
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={allowResume}
-                  onChange={(e) => setAllowResume(e.target.checked)}
-                  className="mr-2"
-                />
-                Allow students to resume test if interrupted
-              </label>
-            </div>
+          <div className="mb-4">
+            <label className="block text-gray-700 font-semibold mb-2">Duration (minutes) *</label>
+            <input
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              required
+              min="1"
+              className="w-full p-2 border rounded"
+            />
           </div>
 
-          {isEditing && (
-            <div className="border-t pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold">Shareable Link</h4>
-                  {shareableLink ? (
-                    <p className="text-sm text-gray-600">
-                      Link: <span className="font-mono bg-gray-100 p-1 rounded">{`${window.location.origin}/test/share/${shareableLink}`}</span>
-                    </p>
-                  ) : (
-                    <p className="text-sm text-gray-500">No shareable link generated yet</p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={generateShareableLink}
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                >
-                  {shareableLink ? 'Regenerate Link' : 'Generate Shareable Link'}
-                </button>
-              </div>
-            </div>
-          )}
+          <div className="mb-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={allowResume}
+                onChange={(e) => setAllowResume(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="text-gray-700">Allow students to resume test if interrupted</span>
+            </label>
+          </div>
         </div>
 
         <hr className="my-6"/>
 
+        {/* Sections */}
         <div className="mb-6">
-          <h3 className="text-2xl font-semibold mb-4">Test Sections</h3>
-            {sections.map((section, sIndex) => (
-              <div key={sIndex} className="mb-8 p-6 border-2 border-blue-200 rounded-lg bg-blue-50">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-xl font-semibold text-blue-800">Section {sIndex + 1}</h4>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-2xl font-semibold">Test Sections</h3>
+            <button
+              type="button"
+              onClick={addSection}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              + Add Section
+            </button>
+          </div>
+
+          {sections.map((section, sIndex) => (
+            <div key={sIndex} className="mb-8 p-6 border-2 border-blue-200 rounded-lg bg-blue-50">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-xl font-semibold text-blue-800">Section {sIndex + 1}</h4>
+                {sections.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeSection(sIndex)}
+                    className="bg-red-200 text-red-700 px-3 py-1 rounded hover:bg-red-300 text-sm"
+                  >
+                    Remove Section
+                  </button>
+                )}
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-gray-700 font-semibold mb-2">Section Title *</label>
+                <input
+                  type="text"
+                  value={section.sectionTitle}
+                  onChange={(e) => handleSectionChange(sIndex, 'sectionTitle', e.target.value)}
+                  required
+                  className="w-full p-2 border rounded bg-white"
+                  placeholder="Enter section title"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-gray-700 font-semibold mb-2">Section Description</label>
+                <textarea
+                  value={section.sectionDescription}
+                  onChange={(e) => handleSectionChange(sIndex, 'sectionDescription', e.target.value)}
+                  className="w-full p-2 border rounded bg-white"
+                  rows={2}
+                  placeholder="Enter section description (optional)"
+                />
+              </div>
+
+              {/* MCQ Questions Section */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <h5 className="text-lg font-semibold text-gray-800">Multiple Choice Questions (MCQ) <span className="text-sm font-normal text-gray-500">(Optional)</span></h5>
+                  <button
+                    type="button"
+                    onClick={() => addQuestion(sIndex)}
+                    className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm"
+                  >
+                    + Add MCQ
+                  </button>
                 </div>
 
-                <h5 className="text-lg font-semibold mb-3 text-gray-800">Questions</h5>
-                {section.questions.map((question, qIndex) => (
-                  <div key={qIndex} className="mb-6 p-4 border rounded-lg bg-white">
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="block text-gray-700 font-semibold">Question {qIndex + 1}</label>
-                    </div>
-                    
-                    <textarea
-                      name="questionText"
-                      value={question.questionText}
-                      onChange={event => handleSectionQuestionChange(sIndex, qIndex, event)}
-                      className="w-full p-2 border rounded mb-2"
-                      placeholder="Enter the question text"
-                      required
-                    ></textarea>
-
-                    {question.options.map((option, oIndex) => (
-                      <div key={oIndex} className="flex items-center mb-2">
-                        <input
-                          type="text"
-                          value={option}
-                          onChange={event => handleSectionOptionChange(sIndex, qIndex, oIndex, event)}
-                          className="w-full p-2 border rounded"
-                          placeholder={`Option ${oIndex + 1}`}
-                          required
-                        />
+                {section.questions.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic mb-3">No MCQ questions added. Click "+ Add MCQ" to add questions.</p>
+                ) : (
+                  section.questions.map((question, qIndex) => (
+                    <div key={qIndex} className="mb-4 p-4 border rounded-lg bg-white">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-gray-700 font-semibold">MCQ Question {qIndex + 1}</label>
+                        <button
+                          type="button"
+                          onClick={() => removeQuestion(sIndex, qIndex)}
+                          className="bg-red-200 text-red-700 px-2 py-1 rounded hover:bg-red-300 text-xs"
+                        >
+                          Remove
+                        </button>
                       </div>
-                    ))}
-                    
-                    <div className="mt-2">
-                      <label className="block text-sm text-gray-600">Correct Answer:</label>
-                      <select 
-                        name="correctAnswer" 
-                        value={question.correctAnswer} 
-                        onChange={event => handleSectionCorrectAnswerChange(sIndex, qIndex, event)} 
-                        className="w-full p-2 border rounded"
-                      >
-                        {question.options.map((_, oIndex) => (
-                          <option key={oIndex} value={oIndex}>Option {oIndex + 1}</option>
-                        ))}
-                      </select>
+
+                    <textarea
+                      value={question.questionText}
+                      onChange={(e) => handleQuestionChange(sIndex, qIndex, 'questionText', e.target.value)}
+                      required
+                      className="w-full p-2 border rounded mb-3"
+                      rows={2}
+                      placeholder="Enter question text"
+                    />
+
+                    <div className="mb-3">
+                      <label className="block text-gray-700 text-sm font-semibold mb-2">Options:</label>
+                      {question.options.map((option, oIndex) => (
+                        <div key={oIndex} className="flex items-center mb-2">
+                          <input
+                            type="radio"
+                            name={`correct-${sIndex}-${qIndex}`}
+                            checked={question.correctAnswer === oIndex}
+                            onChange={() => handleQuestionChange(sIndex, qIndex, 'correctAnswer', oIndex)}
+                            className="mr-2"
+                          />
+                          <input
+                            type="text"
+                            value={option}
+                            onChange={(e) => handleOptionChange(sIndex, qIndex, oIndex, e.target.value)}
+                            required
+                            className="flex-1 p-2 border rounded"
+                            placeholder={`Option ${oIndex + 1}`}
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-
-                <button 
-                  type="button" 
-                  onClick={() => addSectionQuestion(sIndex)} 
-                  className="bg-blue-200 text-blue-700 px-4 py-2 rounded hover:bg-blue-300"
-                >
-                  Add Question to Section
-                </button>
+                  ))
+                )}
               </div>
-            ))}
 
-            <button 
-              type="button" 
-              onClick={addSection} 
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-6"
-            >
-              Add New Section
-            </button>
+              {/* Coding Questions Section */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <h5 className="text-lg font-semibold text-gray-800">Coding Questions <span className="text-sm font-normal text-gray-500">(Optional)</span></h5>
+                  <button
+                    type="button"
+                    onClick={() => addCodingQuestion(sIndex)}
+                    className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm"
+                  >
+                    + Add Coding Question
+                  </button>
+                </div>
+
+                {section.codingQuestions.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic mb-3">No coding questions added. Click "+ Add Coding Question" to add questions.</p>
+                ) : (
+                  section.codingQuestions.map((cq, cqIndex) => (
+                  <div key={cqIndex} className="mb-6 p-4 border rounded-lg bg-white">
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-gray-700 font-semibold">Coding Question {cqIndex + 1}</label>
+                      <button
+                        type="button"
+                        onClick={() => removeCodingQuestion(sIndex, cqIndex)}
+                        className="bg-red-200 text-red-700 px-2 py-1 rounded hover:bg-red-300 text-xs"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={cq.title}
+                      onChange={(e) => handleCodingQuestionChange(sIndex, cqIndex, "title", e.target.value)}
+                      placeholder="Enter coding question title"
+                      className="w-full p-2 border rounded mb-2"
+                    />
+                    <textarea
+                      value={cq.description}
+                      onChange={(e) => handleCodingQuestionChange(sIndex, cqIndex, "description", e.target.value)}
+                      placeholder="Describe the problem statement"
+                      className="w-full p-2 border rounded mb-2"
+                      rows={3}
+                    />
+                    <label className="block text-gray-700 text-sm mb-1">Starter Code:</label>
+                    <textarea
+                      value={cq.starterCode}
+                      onChange={(e) => handleCodingQuestionChange(sIndex, cqIndex, "starterCode", e.target.value)}
+                      className="w-full p-2 border rounded font-mono mb-2"
+                      rows={5}
+                    />
+                    <label className="block text-gray-700 text-sm mb-1">Language:</label>
+                    <select
+                      value={cq.language}
+                      onChange={(e) => handleCodingQuestionChange(sIndex, cqIndex, "language", e.target.value)}
+                      className="w-full p-2 border rounded mb-2"
+                    >
+                      <option value="javascript">JavaScript</option>
+                      <option value="python">Python</option>
+                      <option value="cpp">C++</option>
+                      <option value="java">Java</option>
+                    </select>
+
+                    {/* Test Cases Section */}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-gray-700 text-sm font-semibold">Test Cases (for automatic evaluation):</label>
+                        <button
+                          type="button"
+                          onClick={() => addTestCase(sIndex, cqIndex)}
+                          className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                        >
+                          + Add Test Case
+                        </button>
+                      </div>
+                      {cq.testCases && cq.testCases.length > 0 ? (
+                        <div className="space-y-2">
+                          {cq.testCases.map((testCase, tcIndex) => (
+                            <div key={tcIndex} className="p-2 bg-white border rounded">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs font-semibold text-gray-600">Test Case {tcIndex + 1}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => removeTestCase(sIndex, cqIndex, tcIndex)}
+                                  className="text-xs bg-red-200 text-red-700 px-2 py-1 rounded hover:bg-red-300"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 mb-2">
+                                <div>
+                                  <label className="block text-xs text-gray-600 mb-1">Input:</label>
+                                  <textarea
+                                    value={testCase.input}
+                                    onChange={(e) => handleTestCaseChange(sIndex, cqIndex, tcIndex, "input", e.target.value)}
+                                    placeholder="Test input"
+                                    className="w-full p-1 border rounded text-xs font-mono"
+                                    rows={2}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-600 mb-1">Expected Output:</label>
+                                  <textarea
+                                    value={testCase.expectedOutput}
+                                    onChange={(e) => handleTestCaseChange(sIndex, cqIndex, tcIndex, "expectedOutput", e.target.value)}
+                                    placeholder="Expected output"
+                                    className="w-full p-1 border rounded text-xs font-mono"
+                                    rows={2}
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-600 mb-1">Weight (points):</label>
+                                <input
+                                  type="number"
+                                  value={testCase.weight || 1}
+                                  onChange={(e) => handleTestCaseChange(sIndex, cqIndex, tcIndex, "weight", parseInt(e.target.value) || 1)}
+                                  min="1"
+                                  className="w-20 p-1 border rounded text-xs"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 italic">No test cases added. Code will be saved for manual evaluation.</p>
+                      )}
+                    </div>
+                  </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="flex justify-center">
-          <button 
-            type="submit" 
-            className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition text-lg font-semibold"
-          >
+          <button type="submit" className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700">
             {isEditing ? 'Update Test' : 'Save Test'}
           </button>
         </div>

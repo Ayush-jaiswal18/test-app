@@ -164,7 +164,11 @@ exports.generateShareableLink = async (req, res) => {
     test.isPublic = true;
     await test.save();
 
-    const shareUrl = `${req.protocol}://${req.get('host')}/test/share/${shareableLink}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const normalizedFrontendUrl = frontendUrl.endsWith('/')
+      ? frontendUrl.slice(0, -1)
+      : frontendUrl;
+    const shareUrl = `${normalizedFrontendUrl}/test/share/${shareableLink}`;
 
     res.status(200).json({ 
       success: true, 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import Proctoring from './Proctoring';
+import CodeEditor from './CodeEditor';
 
 const TestPage = () => {
   const { testId, shareLink } = useParams();
@@ -10,6 +11,29 @@ const TestPage = () => {
   const [studentEmail, setStudentEmail] = useState('');
   const [rollNumber, setRollNumber] = useState('');
   const [answers, setAnswers] = useState([]);
+  const [codingAnswers, setCodingAnswers] = useState([]); // 🆕 Store coding question answers
+  const [questionMode, setQuestionMode] = useState('mcq'); // 'mcq' or 'coding'
+  const [currentCodingQuestion, setCurrentCodingQuestion] = useState(0);
+
+  // Auto-switch to coding questions if no MCQ questions in current section
+  useEffect(() => {
+    if (started && test && test.sections && test.sections.length > 0) {
+      const currentSectionData = test.sections[currentSection];
+      const hasMCQ = currentSectionData.questions && currentSectionData.questions.length > 0;
+      const hasCoding = currentSectionData.codingQuestions && currentSectionData.codingQuestions.length > 0;
+      
+      // If no MCQ but has coding questions, switch to coding mode
+      if (!hasMCQ && hasCoding && questionMode === 'mcq') {
+        setQuestionMode('coding');
+        setCurrentCodingQuestion(0);
+      }
+      // If no coding but has MCQ questions, switch to MCQ mode
+      else if (!hasCoding && hasMCQ && questionMode === 'coding') {
+        setQuestionMode('mcq');
+        setCurrentQuestion(0);
+      }
+    }
+  }, [currentSection, started, test, questionMode]);
   const [started, setStarted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(null);
@@ -36,6 +60,7 @@ const TestPage = () => {
         currentSection,
         currentQuestion,
         answers,
+        codingAnswers, // 🆕 Include coding answers
         timeSpent
       };
       
@@ -77,9 +102,13 @@ const TestPage = () => {
           // For sectioned tests
           const totalQuestions = testData.sections.reduce((sum, section) => sum + section.questions.length, 0);
           setAnswers(new Array(totalQuestions).fill(null));
+          // Initialize coding answers
+          const totalCodingQuestions = testData.sections.reduce((sum, section) => sum + (section.codingQuestions?.length || 0), 0);
+          setCodingAnswers(new Array(totalCodingQuestions).fill(null));
         } else {
           // For traditional tests
           setAnswers(new Array(testData.questions.length).fill(null));
+          setCodingAnswers([]);
         }
         
         setTimeLeft(testData.duration * 60);
@@ -186,7 +215,21 @@ const TestPage = () => {
         setTimeLeft(test.duration * 60);
         setCurrentSection(0);
         setCurrentQuestion(0);
+        setCurrentCodingQuestion(0);
         setIsResumed(false);
+        
+        // Auto-set question mode based on first section
+        if (test.sections && test.sections.length > 0) {
+          const firstSection = test.sections[0];
+          const hasMCQ = firstSection.questions && firstSection.questions.length > 0;
+          const hasCoding = firstSection.codingQuestions && firstSection.codingQuestions.length > 0;
+          
+          if (!hasMCQ && hasCoding) {
+            setQuestionMode('coding');
+          } else {
+            setQuestionMode('mcq');
+          }
+        }
         
         console.log('Starting fresh test (no existing progress):', {
           totalDuration: test.duration * 60,
@@ -221,6 +264,15 @@ const TestPage = () => {
       }));
       
       setAnswers(cleanAnswers);
+      
+      // 🆕 Restore coding answers
+      const cleanCodingAnswers = (savedProgress.codingAnswers || []).filter(answer => 
+        answer && 
+        answer.hasOwnProperty('codingQuestionIndex') &&
+        answer.sourceCode &&
+        answer.sourceCode.trim() !== ''
+      );
+      setCodingAnswers(cleanCodingAnswers);
       
       // Calculate the time properly for resumed test
       const totalDurationSeconds = test.duration * 60;
@@ -366,6 +418,49 @@ const TestPage = () => {
     }, 500); // 500ms delay
   };
 
+  // 🆕 Handle coding answer changes
+  const handleCodingAnswerChange = (sectionIndex, codingQuestionIndex, code, language) => {
+    const answerObj = {
+      sectionIndex: parseInt(sectionIndex, 10),
+      codingQuestionIndex: parseInt(codingQuestionIndex, 10),
+      sourceCode: code,
+      language: language
+    };
+
+    const cleanAnswers = codingAnswers.filter(a => a && a.hasOwnProperty('codingQuestionIndex'));
+    
+    const existingIndex = cleanAnswers.findIndex(a => 
+      a.sectionIndex === sectionIndex && a.codingQuestionIndex === codingQuestionIndex
+    );
+
+    if (existingIndex !== -1) {
+      cleanAnswers[existingIndex] = answerObj;
+    } else {
+      cleanAnswers.push(answerObj);
+    }
+
+    setCodingAnswers(cleanAnswers);
+    
+    // Auto-save coding answers
+    if (started && studentEmail && test) {
+      setTimeout(() => {
+        axios.post(`${API_URL}/api/progress/save`, {
+          studentEmail,
+          studentName,
+          rollNumber,
+          testId: test._id,
+          currentSection,
+          currentQuestion,
+          answers,
+          codingAnswers: cleanAnswers,
+          timeSpent
+        }).catch(err => {
+          console.error('❌ Failed to save coding answer:', err);
+        });
+      }, 1000);
+    }
+  };
+
   const handleSubmit = async () => {
     if(!started) return; // Prevent submitting before starting or after time is up from another tab
     
@@ -376,6 +471,7 @@ const TestPage = () => {
         rollNumber,
         testId: test._id,
         answers: answers.filter(a => a !== null && a !== undefined),
+        codingAnswers: codingAnswers.filter(a => a !== null && a !== undefined), // 🆕 Include coding answers
         timeSpent,
         isResumed
       };
@@ -404,6 +500,18 @@ const TestPage = () => {
     
     setCurrentSection(newSection);
     setCurrentQuestion(0);
+    setCurrentCodingQuestion(0);
+    
+    // Auto-switch mode based on available questions in new section
+    const newSectionData = test.sections[newSection];
+    const hasMCQ = newSectionData.questions && newSectionData.questions.length > 0;
+    const hasCoding = newSectionData.codingQuestions && newSectionData.codingQuestions.length > 0;
+    
+    if (!hasMCQ && hasCoding) {
+      setQuestionMode('coding');
+    } else if (hasMCQ) {
+      setQuestionMode('mcq');
+    }
   };
 
   const navigateQuestion = (direction) => {
@@ -576,8 +684,18 @@ const TestPage = () => {
       answersFiltered: answers.filter(a => a && a.sectionIndex === currentSection)
     });
 
+    const hasMCQ = currentSectionData.questions && currentSectionData.questions.length > 0;
+    const hasCoding = currentSectionData.codingQuestions && currentSectionData.codingQuestions.length > 0;
+    const totalQuestions = (hasMCQ ? currentSectionData.questions.length : 0) + (hasCoding ? currentSectionData.codingQuestions.length : 0);
+    
+    // Get current coding answer
+    const currentCodingAnswer = codingAnswers.find(a => 
+      a && a.sectionIndex === currentSection && a.codingQuestionIndex === currentCodingQuestion
+    );
+    const currentCodingQuestionData = hasCoding ? currentSectionData.codingQuestions[currentCodingQuestion] : null;
+
     return (
-      <div className="bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
+      <div className="bg-white p-8 rounded-lg shadow-lg max-w-6xl mx-auto">
         <Proctoring onMaxWarnings={() => {
           console.warn("Maximum warnings reached, auto-submitting test...");
           handleSubmit();
@@ -595,47 +713,140 @@ const TestPage = () => {
           <div className="text-right">
             <div className="text-2xl font-semibold text-red-500">{formatTime(timeLeft)}</div>
             <div className="text-sm text-gray-500">
-              Question {currentQuestion + 1} of {currentSectionData.questions.length}
+              {questionMode === 'mcq' 
+                ? `MCQ ${currentQuestion + 1} of ${hasMCQ ? currentSectionData.questions.length : 0}`
+                : `Coding ${currentCodingQuestion + 1} of ${hasCoding ? currentSectionData.codingQuestions.length : 0}`
+              }
             </div>
           </div>
         </div>
 
-        <div className="mb-8">
-          <p className="text-xl font-semibold mb-4">
-            {currentQuestion + 1}. {currentQuestionData.questionText}
-          </p>
-          <div className="space-y-2">
-            {currentQuestionData.options.map((option, oIndex) => (
-              <label key={oIndex} className="flex items-center p-3 border rounded-lg hover:bg-gray-100 cursor-pointer">
-                <input
-                  type="radio"
-                  name={`section-${currentSection}-question-${currentQuestion}`}
-                  className="mr-3"
-                  checked={currentAnswer && currentAnswer.selectedOption === oIndex}
-                  onChange={() => handleAnswerChange(currentSection, currentQuestion, oIndex)}
-                />
-                {option}
-              </label>
-            ))}
+        {/* Question Type Tabs */}
+        {(hasMCQ && hasCoding) && (
+          <div className="mb-4 flex gap-2 border-b">
+            <button
+              onClick={() => {
+                setQuestionMode('mcq');
+                setCurrentQuestion(0);
+              }}
+              className={`px-4 py-2 font-medium transition-colors ${
+                questionMode === 'mcq'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Multiple Choice ({hasMCQ ? currentSectionData.questions.length : 0})
+            </button>
+            <button
+              onClick={() => {
+                setQuestionMode('coding');
+                setCurrentCodingQuestion(0);
+              }}
+              className={`px-4 py-2 font-medium transition-colors ${
+                questionMode === 'coding'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Coding Questions ({hasCoding ? currentSectionData.codingQuestions.length : 0})
+            </button>
           </div>
-        </div>
+        )}
+
+        {/* MCQ Questions */}
+        {questionMode === 'mcq' && hasMCQ && (
+          <div className="mb-8">
+            <p className="text-xl font-semibold mb-4">
+              {currentQuestion + 1}. {currentQuestionData.questionText}
+            </p>
+            <div className="space-y-2">
+              {currentQuestionData.options.map((option, oIndex) => (
+                <label key={oIndex} className="flex items-center p-3 border rounded-lg hover:bg-gray-100 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`section-${currentSection}-question-${currentQuestion}`}
+                    className="mr-3"
+                    checked={currentAnswer && currentAnswer.selectedOption === oIndex}
+                    onChange={() => handleAnswerChange(currentSection, currentQuestion, oIndex)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Coding Questions */}
+        {questionMode === 'coding' && hasCoding && currentCodingQuestionData && (
+          <div className="mb-8">
+            <div className="mb-4">
+              <h3 className="text-xl font-semibold mb-2">
+                {currentCodingQuestion + 1}. {currentCodingQuestionData.title}
+              </h3>
+              <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                <p className="text-gray-700 whitespace-pre-wrap">{currentCodingQuestionData.description}</p>
+              </div>
+            </div>
+            <CodeEditor
+              questionId={null} // Coding questions in tests don't use the separate Question model
+              starterCode={currentCodingQuestionData.starterCode || ""}
+              defaultLanguage={currentCodingQuestionData.language || "javascript"}
+              onCodeChange={(code, language) => 
+                handleCodingAnswerChange(currentSection, currentCodingQuestion, code, language)
+              }
+              initialCode={currentCodingAnswer?.sourceCode || currentCodingQuestionData.starterCode || ""}
+              readOnly={false}
+              allowedLanguages={[currentCodingQuestionData.language || "javascript"]}
+            />
+          </div>
+        )}
+
+        {/* Show message if no questions of selected type */}
+        {((questionMode === 'mcq' && !hasMCQ) || (questionMode === 'coding' && !hasCoding)) && (
+          <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-yellow-800">
+              No {questionMode === 'mcq' ? 'multiple choice' : 'coding'} questions in this section.
+            </p>
+          </div>
+        )}
 
         <div className="flex justify-between items-center">
           <div className="flex space-x-2">
-            <button 
-              onClick={() => navigateQuestion('prev')}
-              disabled={isFirstQuestion && isFirstSection}
-              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button 
-              onClick={() => navigateQuestion('next')}
-              disabled={isLastQuestion && isLastSection}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
+            {questionMode === 'mcq' ? (
+              <>
+                <button 
+                  onClick={() => navigateQuestion('prev')}
+                  disabled={isFirstQuestion && isFirstSection}
+                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button 
+                  onClick={() => navigateQuestion('next')}
+                  disabled={isLastQuestion && isLastSection}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={() => setCurrentCodingQuestion(Math.max(0, currentCodingQuestion - 1))}
+                  disabled={currentCodingQuestion === 0}
+                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button 
+                  onClick={() => setCurrentCodingQuestion(Math.min((hasCoding ? currentSectionData.codingQuestions.length - 1 : 0), currentCodingQuestion + 1))}
+                  disabled={currentCodingQuestion >= (hasCoding ? currentSectionData.codingQuestions.length - 1 : 0)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </>
+            )}
           </div>
 
           <div className="flex space-x-2">
@@ -661,14 +872,21 @@ const TestPage = () => {
           <div className="flex justify-between text-sm text-gray-600 mb-2">
             <span>Overall Progress</span>
             <span>
-              {answers.filter(a => a).length} / {test.sections.reduce((sum, section) => sum + section.questions.length, 0)} answered
+              {answers.filter(a => a).length + codingAnswers.filter(a => a).length} / {
+                test.sections.reduce((sum, section) => 
+                  sum + section.questions.length + (section.codingQuestions?.length || 0), 0
+                )
+              } answered
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
               className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
               style={{
-                width: `${(answers.filter(a => a).length / test.sections.reduce((sum, section) => sum + section.questions.length, 0)) * 100}%`
+                width: `${((answers.filter(a => a).length + codingAnswers.filter(a => a).length) / 
+                  test.sections.reduce((sum, section) => 
+                    sum + section.questions.length + (section.codingQuestions?.length || 0), 0
+                  )) * 100}%`
               }}
             ></div>
           </div>

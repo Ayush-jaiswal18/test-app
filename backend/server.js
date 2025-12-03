@@ -27,6 +27,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/tests', require('./routes/testRoutes'));
 app.use('/api/results', require('./routes/resultRoutes'));
 app.use('/api/progress', require('./routes/progressRoutes'));
+app.use('/api/code', require('./routes/code'));
 
 // Proctoring endpoint
 app.post("/api/report", (req, res) => {

@@ -6,7 +6,7 @@ const TestProgress = require('../models/testProgressModel');
 // @route   POST /api/results/submit
 // @access  Public
 exports.submitTest = async (req, res) => {
-  const { studentName, studentEmail, rollNumber, testId, answers, timeSpent, isResumed } = req.body;
+  const { studentName, studentEmail, rollNumber, testId, answers, codingAnswers, timeSpent, isResumed } = req.body;
 
   try {
     // Fetch the test to get correct answers
@@ -22,6 +22,7 @@ exports.submitTest = async (req, res) => {
     if (test.sections && test.sections.length > 0) {
       // Calculate score for sectioned test
       test.sections.forEach((section, sectionIndex) => {
+        // Score MCQ questions
         section.questions.forEach((question, questionIndex) => {
           totalMarks++;
           const studentAnswer = answers.find(a => 
@@ -31,6 +32,24 @@ exports.submitTest = async (req, res) => {
             score++;
           }
         });
+        
+        // Score coding questions (if test cases exist, evaluate them; otherwise just save the code)
+        if (section.codingQuestions && section.codingQuestions.length > 0) {
+          section.codingQuestions.forEach((codingQuestion, codingQuestionIndex) => {
+            totalMarks += (codingQuestion.testCases?.length || 1); // Weight by test cases or default to 1
+            const studentCodingAnswer = codingAnswers?.find(a => 
+              a.sectionIndex === sectionIndex && a.codingQuestionIndex === codingQuestionIndex
+            );
+            
+            // For now, coding questions are saved but not auto-evaluated during test submission
+            // They can be evaluated later by admin or through a separate endpoint
+            // If test cases exist and we want to evaluate, we'd need to call the code execution service
+            if (studentCodingAnswer && studentCodingAnswer.sourceCode) {
+              // Code submitted - could evaluate here if needed
+              // For now, we'll just save it and let admin evaluate later
+            }
+          });
+        }
       });
     } else {
       // Calculate score for traditional test
@@ -52,6 +71,7 @@ exports.submitTest = async (req, res) => {
       score,
       totalMarks,
       answers,
+      codingAnswers: codingAnswers || [], // 🆕 Save coding answers
       timeSpent: timeSpent || 0,
       isResumed: isResumed || false,
     });
@@ -137,5 +157,114 @@ exports.getResultsByTestId = async (req, res) => {
 
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+// @desc    Get a single result with full details
+// @route   GET /api/results/:testId/:resultId
+// @access  Private (Admin)
+exports.getResultById = async (req, res) => {
+    try {
+        const { testId, resultId } = req.params;
+        
+        const test = await Test.findById(testId);
+        if(!test){
+            return res.status(404).json({ success: false, message: 'Test not found' });
+        }
+
+        // Ensure the admin requesting results is the one who created the test
+        if (test.createdBy.toString() !== req.admin._id.toString()) {
+            return res.status(401).json({ success: false, message: 'Not authorized to view these results' });
+        }
+
+        const result = await Result.findById(resultId).populate('test');
+        if(!result){
+            return res.status(404).json({ success: false, message: 'Result not found' });
+        }
+
+        res.status(200).json({ success: true, data: result });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Evaluate a coding question submission
+// @route   POST /api/results/:resultId/evaluate-coding
+// @access  Private (Admin)
+exports.evaluateCodingQuestion = async (req, res) => {
+    try {
+        const { resultId } = req.params;
+        const { sectionIndex, codingQuestionIndex, score, feedback } = req.body;
+
+        const result = await Result.findById(resultId);
+        if(!result){
+            return res.status(404).json({ success: false, message: 'Result not found' });
+        }
+
+        // Find the coding answer
+        const codingAnswer = result.codingAnswers.find(a => 
+            a.sectionIndex === sectionIndex && a.codingQuestionIndex === codingQuestionIndex
+        );
+
+        if(!codingAnswer){
+            return res.status(404).json({ success: false, message: 'Coding answer not found' });
+        }
+
+        // Update the score
+        codingAnswer.score = score || 0;
+        if(feedback) codingAnswer.feedback = feedback;
+
+        // Recalculate total score
+        const test = await Test.findById(result.test);
+        let newScore = 0;
+        let totalMarks = 0;
+
+        // Calculate MCQ score
+        if (test.sections && test.sections.length > 0) {
+            test.sections.forEach((section, sIdx) => {
+                section.questions.forEach((question, qIdx) => {
+                    totalMarks++;
+                    const studentAnswer = result.answers.find(a => 
+                        a.sectionIndex === sIdx && a.questionIndex === qIdx
+                    );
+                    if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
+                        newScore++;
+                    }
+                });
+            });
+        } else {
+            totalMarks = test.questions.length;
+            test.questions.forEach((question, index) => {
+                const studentAnswer = result.answers.find(a => a.questionIndex === index);
+                if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
+                    newScore++;
+                }
+            });
+        }
+
+        // Add coding question scores
+        result.codingAnswers.forEach(ca => {
+            const section = test.sections?.[ca.sectionIndex];
+            const codingQuestion = section?.codingQuestions?.[ca.codingQuestionIndex];
+            if(codingQuestion) {
+                const maxScore = codingQuestion.testCases?.reduce((sum, tc) => sum + (tc.weight || 1), 0) || 10;
+                totalMarks += maxScore;
+                newScore += (ca.score || 0);
+            }
+        });
+
+        result.score = newScore;
+        result.totalMarks = totalMarks;
+        await result.save();
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Coding question evaluated successfully',
+            data: result 
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
     }
 };

@@ -15,6 +15,32 @@ const questionSchema = new mongoose.Schema({
   },
 });
 
+const codingQuestionSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  description: {
+    type: String,
+    required: true,
+  },
+  starterCode: {
+    type: String,
+    default: '',
+  },
+  language: {
+    type: String,
+    default: 'javascript',
+    enum: ['javascript', 'python', 'cpp', 'java'],
+  },
+  testCases: [{
+    input: String,
+    expectedOutput: String,
+    weight: { type: Number, default: 1 }
+  }],
+});
+
 const sectionSchema = new mongoose.Schema({
   sectionTitle: {
     type: String,
@@ -30,6 +56,7 @@ const sectionSchema = new mongoose.Schema({
     default: null,
   },
   questions: [questionSchema],
+  codingQuestions: [codingQuestionSchema], // 🆕 Support coding questions
 });
 
 const testSchema = new mongoose.Schema({

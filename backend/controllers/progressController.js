@@ -5,7 +5,7 @@ const Test = require('../models/testModel');
 // @route   POST /api/progress/save
 // @access  Public
 exports.saveProgress = async (req, res) => {
-  const { studentEmail, studentName, rollNumber, testId, currentSection, currentQuestion, answers, timeSpent } = req.body;
+  const { studentEmail, studentName, rollNumber, testId, currentSection, currentQuestion, answers, codingAnswers, timeSpent } = req.body;
 
   try {
     // Check if test exists
@@ -23,6 +23,7 @@ exports.saveProgress = async (req, res) => {
         currentSection: currentSection || 0,
         currentQuestion: currentQuestion || 0,
         answers: answers || [],
+        codingAnswers: codingAnswers || [], // 🆕 Save coding answers
         timeSpent: timeSpent || 0,
         lastSaved: new Date(),
       },

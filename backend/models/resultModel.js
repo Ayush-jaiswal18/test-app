@@ -39,6 +39,19 @@ const resultSchema = new mongoose.Schema({
     questionIndex: Number,
     selectedOption: Number,
   }],
+  // Coding question answers
+  codingAnswers: [{
+    sectionIndex: {
+      type: Number,
+      default: 0,
+    },
+    codingQuestionIndex: Number, // Index within the codingQuestions array
+    sourceCode: String,
+    language: String,
+    submissionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Submission' }, // Reference to Submission if evaluated
+    score: Number, // Score for this coding question
+    feedback: String, // Admin feedback for the coding answer
+  }],
   timeSpent: {
     type: Number,
     default: 0, // Total time spent in seconds

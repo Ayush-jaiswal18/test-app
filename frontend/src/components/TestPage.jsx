@@ -4,6 +4,8 @@ import { useParams } from 'react-router-dom';
 import Proctoring from './Proctoring';
 import CodeEditor from './CodeEditor';
 
+const SUPPORTED_LANGUAGES = ['javascript', 'python', 'cpp', 'java'];
+
 const TestPage = () => {
   const { testId, shareLink } = useParams();
   const [test, setTest] = useState(null);
@@ -421,9 +423,11 @@ const TestPage = () => {
 
   // 🆕 Handle coding answer changes
   const handleCodingAnswerChange = (sectionIndex, codingQuestionIndex, code, language) => {
+    const sIdx = parseInt(sectionIndex, 10);
+    const cqIdx = parseInt(codingQuestionIndex, 10);
     const answerObj = {
-      sectionIndex: parseInt(sectionIndex, 10),
-      codingQuestionIndex: parseInt(codingQuestionIndex, 10),
+      sectionIndex: sIdx,
+      codingQuestionIndex: cqIdx,
       sourceCode: code,
       language: language
     };
@@ -431,7 +435,7 @@ const TestPage = () => {
     const cleanAnswers = codingAnswers.filter(a => a && a.hasOwnProperty('codingQuestionIndex'));
     
     const existingIndex = cleanAnswers.findIndex(a => 
-      a.sectionIndex === sectionIndex && a.codingQuestionIndex === codingQuestionIndex
+      a.sectionIndex === sIdx && a.codingQuestionIndex === cqIdx
     );
 
     if (existingIndex !== -1) {
@@ -780,25 +784,78 @@ const TestPage = () => {
         {/* Coding Questions */}
         {questionMode === 'coding' && hasCoding && currentCodingQuestionData && (
           <div className="mb-8">
-            <div className="mb-4">
-              <h3 className="text-xl font-semibold mb-2">
-                {currentCodingQuestion + 1}. {currentCodingQuestionData.title}
-              </h3>
-              <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                <p className="text-gray-700 whitespace-pre-wrap">{currentCodingQuestionData.description}</p>
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <h3 className="text-xl font-semibold mb-1">
+                  {currentCodingQuestion + 1}. {currentCodingQuestionData.title}
+                </h3>
+                <p className="text-sm text-gray-500">Scroll inside either panel to view full content.</p>
               </div>
             </div>
-            <CodeEditor
-              questionId={null} // Coding questions in tests don't use the separate Question model
-              starterCode={currentCodingQuestionData.starterCode || ""}
-              defaultLanguage={currentCodingQuestionData.language || "javascript"}
-              onCodeChange={(code, language) => 
-                handleCodingAnswerChange(currentSection, currentCodingQuestion, code, language)
-              }
-              initialCode={currentCodingAnswer?.sourceCode || currentCodingQuestionData.starterCode || ""}
-              readOnly={false}
-              allowedLanguages={[currentCodingQuestionData.language || "javascript"]}
-            />
+            <div className="flex flex-col lg:flex-row gap-4 bg-white border rounded-xl shadow-sm h-[calc(100vh-280px)]">
+              <div className="lg:w-1/2 h-full overflow-y-auto p-4 border-b lg:border-b-0 lg:border-r">
+                <h4 className="text-lg font-semibold mb-3 text-gray-800">Problem Statement</h4>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-700 whitespace-pre-wrap">
+                  {currentCodingQuestionData.description}
+                </div>
+                {currentCodingQuestionData.sampleInput && (
+                  <div className="mt-4">
+                    <h5 className="text-sm font-semibold text-gray-600 mb-1">Sample Input</h5>
+                    <pre className="bg-gray-900 text-green-300 text-sm rounded-lg p-3 overflow-x-auto">{currentCodingQuestionData.sampleInput}</pre>
+                  </div>
+                )}
+                {currentCodingQuestionData.sampleOutput && (
+                  <div className="mt-3">
+                    <h5 className="text-sm font-semibold text-gray-600 mb-1">Sample Output</h5>
+                    <pre className="bg-gray-900 text-green-300 text-sm rounded-lg p-3 overflow-x-auto">{currentCodingQuestionData.sampleOutput}</pre>
+                  </div>
+                )}
+              </div>
+
+              <div className="lg:w-1/2 h-full overflow-y-auto p-4 flex flex-col gap-4">
+                <div className="flex-1 min-h-[420px]">
+                  <CodeEditor
+                    key={`section-${currentSection}-coding-${currentCodingQuestion}`}
+                    questionId={null} // Coding questions in tests don't use the separate Question model
+                    starterCode={currentCodingQuestionData.starterCode || ""}
+                    defaultLanguage={currentCodingAnswer?.language || currentCodingQuestionData.language || "javascript"}
+                    onCodeChange={(code, language) => 
+                      handleCodingAnswerChange(currentSection, currentCodingQuestion, code, language)
+                    }
+                    initialCode={currentCodingAnswer?.sourceCode || currentCodingQuestionData.starterCode || ""}
+                    readOnly={false}
+                    allowedLanguages={
+                      (currentCodingQuestionData.allowedLanguages && currentCodingQuestionData.allowedLanguages.length > 0)
+                        ? currentCodingQuestionData.allowedLanguages
+                        : SUPPORTED_LANGUAGES
+                    }
+                  />
+                </div>
+                {currentCodingQuestionData.testCases && currentCodingQuestionData.testCases.length > 0 && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Test Cases</h4>
+                    <div className="space-y-3">
+                      {currentCodingQuestionData.testCases.map((tc, idx) => (
+                        <div key={idx} className="bg-white border rounded-lg p-3 shadow-sm">
+                          <div className="flex justify-between text-xs text-gray-500 mb-2">
+                            <span>Test Case {idx + 1}</span>
+                            <span>Weight: {tc.weight || 1}</span>
+                          </div>
+                          <div className="mb-2">
+                            <p className="text-xs font-semibold text-gray-600 mb-1">Input</p>
+                            <pre className="bg-gray-900 text-green-300 text-xs rounded p-2 overflow-x-auto">{tc.input || 'N/A'}</pre>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-gray-600 mb-1">Expected Output</p>
+                            <pre className="bg-gray-900 text-green-300 text-xs rounded p-2 overflow-x-auto">{tc.expectedOutput || 'N/A'}</pre>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

@@ -14,6 +14,19 @@ const TestPage = () => {
   const [codingAnswers, setCodingAnswers] = useState([]); // 🆕 Store coding question answers
   const [questionMode, setQuestionMode] = useState('mcq'); // 'mcq' or 'coding'
   const [currentCodingQuestion, setCurrentCodingQuestion] = useState(0);
+  
+  const [started, setStarted] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [score, setScore] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [currentSection, setCurrentSection] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [timeSpent, setTimeSpent] = useState(0);
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+  const [savedProgress, setSavedProgress] = useState(null);
+  const [error, setError] = useState('');
+  const [isResumed, setIsResumed] = useState(false);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   // Auto-switch to coding questions if no MCQ questions in current section
   useEffect(() => {
@@ -34,18 +47,6 @@ const TestPage = () => {
       }
     }
   }, [currentSection, started, test, questionMode]);
-  const [started, setStarted] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [score, setScore] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(null);
-  const [currentSection, setCurrentSection] = useState(0);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [timeSpent, setTimeSpent] = useState(0);
-  const [showResumeDialog, setShowResumeDialog] = useState(false);
-  const [savedProgress, setSavedProgress] = useState(null);
-  const [error, setError] = useState('');
-  const [isResumed, setIsResumed] = useState(false);
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   // Function to save progress periodically
   const saveProgress = useCallback(async () => {

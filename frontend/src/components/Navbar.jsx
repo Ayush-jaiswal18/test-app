@@ -14,8 +14,9 @@ const Navbar = () => {
     <nav className="bg-white shadow-md">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center py-4">
-          <Link to={token ? "/dashboard" : "/login"} className="text-2xl font-bold text-blue-600">
-            OnlineTest
+          <Link to={token ? "/dashboard" : "/login"} className="flex items-center text-2xl font-bold text-[#324158]">
+            <img src="/logo.png" alt="Logo" className='h-14 w-28 mr-2' />
+            Test Portal
           </Link>
           <div>
             {token ? (

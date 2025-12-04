@@ -34,6 +34,10 @@ const codingQuestionSchema = new mongoose.Schema({
     default: 'javascript',
     enum: ['javascript', 'python', 'cpp', 'java'],
   },
+  allowedLanguages: [{
+    type: String,
+    enum: ['javascript', 'python', 'cpp', 'java'],
+  }],
   testCases: [{
     input: String,
     expectedOutput: String,

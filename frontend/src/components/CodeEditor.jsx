@@ -1,5 +1,5 @@
 // frontend/src/components/CodeEditor.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import axios from "axios";
 
@@ -32,12 +32,52 @@ export default function CodeEditor({
     }
   }, [initialCode, starterCode]);
 
+  const defaultLanguageRef = useRef(defaultLanguage || "javascript");
+  const editorRef = useRef(null);
+  const pasteHandlerRef = useRef(null);
+
   // Notify parent of code changes
   useEffect(() => {
     if (onCodeChange) {
       onCodeChange(code, language);
     }
   }, [code, language, onCodeChange]);
+
+  // Sync language only when parent default actually changes (e.g., switching questions)
+  useEffect(() => {
+    if (defaultLanguage && defaultLanguage !== defaultLanguageRef.current) {
+      defaultLanguageRef.current = defaultLanguage;
+      setLanguage(defaultLanguage);
+    }
+  }, [defaultLanguage]);
+
+  useEffect(() => {
+    return () => {
+      if (editorRef.current && pasteHandlerRef.current) {
+        const domNode = editorRef.current.getDomNode();
+        domNode?.removeEventListener("paste", pasteHandlerRef.current, true);
+      }
+    };
+  }, []);
+
+  const handleEditorMount = (editor, monaco) => {
+    editorRef.current = editor;
+
+    if (pasteHandlerRef.current && editor.getDomNode()) {
+      editor.getDomNode().removeEventListener("paste", pasteHandlerRef.current, true);
+    }
+
+    pasteHandlerRef.current = (event) => {
+      event.preventDefault();
+      alert("Pasting is disabled during the test.");
+    };
+
+    const domNode = editor.getDomNode();
+    domNode?.addEventListener("paste", pasteHandlerRef.current, true);
+
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {});
+    editor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Insert, () => {});
+  };
 
   const getLanguageId = (lang) => {
     const map = {
@@ -212,6 +252,7 @@ export default function CodeEditor({
           language={getLanguageId(language)}
           value={code}
           onChange={handleCodeChange}
+          onMount={handleEditorMount}
           theme="vs-dark"
           options={{
             readOnly: readOnly,
@@ -223,8 +264,19 @@ export default function CodeEditor({
             automaticLayout: true,
             tabSize: 2,
             wordWrap: "on",
-            formatOnPaste: true,
-            formatOnType: true,
+            formatOnPaste: false,
+            formatOnType: false,
+            suggestOnTriggerCharacters: false,
+            quickSuggestions: false,
+            parameterHints: { enabled: false },
+            lightbulb: { enabled: false },
+            suggest: {
+              showWords: false,
+              showFunctions: false,
+              showVariables: false,
+              showModules: false,
+              showSnippets: false,
+            },
           }}
         />
       </div>

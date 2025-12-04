@@ -1,6 +1,36 @@
 const Test = require('../models/testModel');
 const crypto = require('crypto');
 
+const SUPPORTED_LANGUAGES = ['javascript', 'python', 'cpp', 'java'];
+
+const normalizeCodingQuestion = (codingQuestion = {}) => {
+  const sanitizedLanguage = SUPPORTED_LANGUAGES.includes(codingQuestion.language)
+    ? codingQuestion.language
+    : 'javascript';
+
+  let allowedLanguages = Array.isArray(codingQuestion.allowedLanguages)
+    ? codingQuestion.allowedLanguages.filter(lang => SUPPORTED_LANGUAGES.includes(lang))
+    : [];
+
+  if (allowedLanguages.length === 0) {
+    allowedLanguages = [sanitizedLanguage];
+  }
+
+  return {
+    ...codingQuestion,
+    language: sanitizedLanguage,
+    allowedLanguages,
+  };
+};
+
+const normalizeSections = (sections = []) => {
+  if (!Array.isArray(sections)) return [];
+  return sections.map(section => ({
+    ...section,
+    codingQuestions: (section.codingQuestions || []).map(normalizeCodingQuestion),
+  }));
+};
+
 // @desc    Create a new test
 // @route   POST /api/tests
 // @access  Private (Admin)
@@ -35,7 +65,7 @@ exports.createTest = async (req, res) => {
 
     // Add questions or sections based on what's provided
     if (sections && sections.length > 0) {
-      testData.sections = sections;
+      testData.sections = normalizeSections(sections);
       testData.questions = []; // Empty array for backward compatibility
     } else {
       testData.questions = questions || [];
@@ -131,7 +161,12 @@ exports.updateTest = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Not authorized to update this test' });
     }
 
-    test = await Test.findByIdAndUpdate(req.params.id, req.body, {
+    const updatePayload = { ...req.body };
+    if (updatePayload.sections && updatePayload.sections.length > 0) {
+      updatePayload.sections = normalizeSections(updatePayload.sections);
+    }
+
+    test = await Test.findByIdAndUpdate(req.params.id, updatePayload, {
       new: true,
       runValidators: true,
     });

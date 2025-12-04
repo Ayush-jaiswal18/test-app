@@ -2,6 +2,14 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 
+const SUPPORTED_LANGUAGES = ['javascript', 'python', 'cpp', 'java'];
+const LANGUAGE_LABELS = {
+  javascript: 'JavaScript (Node.js)',
+  python: 'Python 3',
+  cpp: 'C++',
+  java: 'Java'
+};
+
 const CreateTestPage = () => {
   const { testId } = useParams();
   const isEditing = Boolean(testId);
@@ -45,7 +53,13 @@ const CreateTestPage = () => {
             const sectionsWithTitles = testData.sections.map((section, index) => ({
               ...section,
               sectionTitle: section.sectionTitle || `Section ${index + 1}`,
-              codingQuestions: section.codingQuestions || []
+              codingQuestions: (section.codingQuestions || []).map(cq => ({
+                ...cq,
+                language: cq.language || 'javascript',
+                allowedLanguages: (cq.allowedLanguages && cq.allowedLanguages.length > 0)
+                  ? cq.allowedLanguages
+                  : [...SUPPORTED_LANGUAGES]
+              }))
             }));
             setSections(sectionsWithTitles);
           }
@@ -120,6 +134,7 @@ const CreateTestPage = () => {
       description: '',
       starterCode: '// write your code here',
       language: 'javascript',
+      allowedLanguages: [...SUPPORTED_LANGUAGES],
       testCases: []
     });
     setSections(values);
@@ -134,6 +149,31 @@ const CreateTestPage = () => {
   const handleCodingQuestionChange = (sIndex, cqIndex, field, value) => {
     const values = [...sections];
     values[sIndex].codingQuestions[cqIndex][field] = value;
+    if (field === 'language') {
+      const allowed = values[sIndex].codingQuestions[cqIndex].allowedLanguages || [];
+      if (!allowed.includes(value)) {
+        values[sIndex].codingQuestions[cqIndex].allowedLanguages = [...allowed, value];
+      }
+    }
+    setSections(values);
+  };
+
+  const toggleAllowedLanguage = (sIndex, cqIndex, lang) => {
+    const values = [...sections];
+    const codingQuestion = values[sIndex].codingQuestions[cqIndex];
+    if (!codingQuestion.allowedLanguages) {
+      codingQuestion.allowedLanguages = [];
+    }
+
+    if (codingQuestion.allowedLanguages.includes(lang)) {
+      if (codingQuestion.allowedLanguages.length === 1) {
+        alert('Each coding question must allow at least one language.');
+        return; // Ensure at least one language remains
+      }
+      codingQuestion.allowedLanguages = codingQuestion.allowedLanguages.filter(l => l !== lang);
+    } else {
+      codingQuestion.allowedLanguages = [...codingQuestion.allowedLanguages, lang];
+    }
     setSections(values);
   };
 
@@ -167,6 +207,22 @@ const CreateTestPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const normalizeCodingQuestion = (codingQuestion) => {
+      const sanitizedLanguage = SUPPORTED_LANGUAGES.includes(codingQuestion.language)
+        ? codingQuestion.language
+        : 'javascript';
+      const sanitizedAllowed = (codingQuestion.allowedLanguages && codingQuestion.allowedLanguages.length > 0
+        ? codingQuestion.allowedLanguages
+        : [sanitizedLanguage]
+      ).filter(lang => SUPPORTED_LANGUAGES.includes(lang));
+
+      return {
+        ...codingQuestion,
+        language: sanitizedLanguage,
+        allowedLanguages: sanitizedAllowed.length > 0 ? sanitizedAllowed : [sanitizedLanguage],
+      };
+    };
+
     const testData = {
       title: title.trim(),
       description: description.trim(),
@@ -175,7 +231,7 @@ const CreateTestPage = () => {
       questions: [],
       sections: sections.map(s => ({
         ...s,
-        codingQuestions: s.codingQuestions || []
+        codingQuestions: (s.codingQuestions || []).map(normalizeCodingQuestion)
       }))
     };
 
@@ -426,17 +482,42 @@ const CreateTestPage = () => {
                           className="w-full p-2 border rounded font-mono mb-2"
                           rows={5}
                         />
-                        <label className="block text-gray-700 text-sm mb-1">Language:</label>
+                        <label className="block text-gray-700 text-sm mb-1">Default Language (pre-selected):</label>
                         <select
                           value={cq.language}
                           onChange={(e) => handleCodingQuestionChange(sIndex, cqIndex, "language", e.target.value)}
                           className="w-full p-2 border rounded mb-2"
                         >
-                          <option value="javascript">JavaScript</option>
-                          <option value="python">Python</option>
-                          <option value="cpp">C++</option>
-                          <option value="java">Java</option>
+                          {SUPPORTED_LANGUAGES.map(lang => (
+                            <option key={lang} value={lang}>
+                              {LANGUAGE_LABELS[lang] || lang}
+                            </option>
+                          ))}
                         </select>
+
+                        <label className="block text-gray-700 text-sm mb-1">Allowed Languages (students can switch):</label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {SUPPORTED_LANGUAGES.map(lang => {
+                            const isSelected = cq.allowedLanguages?.includes(lang);
+                            return (
+                              <label
+                                key={lang}
+                                className={`flex items-center px-3 py-1 border rounded cursor-pointer text-sm ${
+                                  isSelected ? 'bg-blue-50 border-blue-400' : 'bg-gray-50 border-gray-300'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleAllowedLanguage(sIndex, cqIndex, lang)}
+                                  className="mr-2"
+                                />
+                                {LANGUAGE_LABELS[lang] || lang}
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs text-gray-500 mb-2">Select at least one language. If only one is selected, students will code in that language.</p>
 
                         {/* Test Cases Section */}
                         <div className="mt-4 p-3 bg-gray-50 rounded-lg">

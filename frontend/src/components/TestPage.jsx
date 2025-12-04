@@ -696,7 +696,7 @@ const TestPage = () => {
     const currentCodingQuestionData = hasCoding ? currentSectionData.codingQuestions[currentCodingQuestion] : null;
 
     return (
-      <div className="bg-white p-8 rounded-lg shadow-lg max-w-6xl mx-auto">
+      <div className="min-h-screen w-full px-6 py-6">
         <Proctoring onMaxWarnings={() => {
           console.warn("Maximum warnings reached, auto-submitting test...");
           handleSubmit();
@@ -898,7 +898,7 @@ const TestPage = () => {
 
   // Render traditional test (backward compatibility)
   return (
-    <div className="bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
+    <div className="min-h-screen w-full px-6 py-6">
       <div className="flex justify-between items-center mb-6 border-b pb-4">
         <h1 className="text-3xl font-bold">{test.title}</h1>
         <div className="text-2xl font-semibold text-red-500">{formatTime(timeLeft)}</div>

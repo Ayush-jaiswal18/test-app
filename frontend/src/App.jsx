@@ -1,5 +1,11 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation
+} from 'react-router-dom';
+
 import LoginPage from './components/LoginPage.jsx';
 import SignupPage from './components/SignupPage.jsx';
 import DashboardPage from './components/DashboardPage.jsx';
@@ -10,10 +16,28 @@ import PrivateRoute from './components/PrivateRoute.jsx';
 import Navbar from './components/Navbar.jsx';
 
 function App() {
+  const location = useLocation();
+
+  // Hide Navbar only on test pages
+  const hideNavbar = location.pathname.startsWith('/test');
+
+  // Center layout on test, create-test and edit-test pages
+  const centerLayout =
+    location.pathname.startsWith('/test') ||
+    location.pathname.startsWith('/create-test') ||
+    location.pathname.startsWith('/edit-test');
+
   return (
-    <Router>
-      <Navbar />
-      <main className="container mx-auto px-4 py-8">
+    <>
+      {!hideNavbar && <Navbar />}
+
+      <main
+        className={
+          centerLayout
+            ? 'min-h-screen flex justify-center items-center bg-gray-100 px-4'
+            : 'container mx-auto px-4 py-8'
+        }
+      >
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
@@ -22,16 +46,51 @@ function App() {
           <Route path="/test/:testId" element={<TestPage />} />
 
           {/* Private Admin Routes */}
-          <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-          <Route path="/create-test" element={<PrivateRoute><CreateTestPage /></PrivateRoute>} />
-          <Route path="/edit-test/:testId" element={<PrivateRoute><CreateTestPage /></PrivateRoute>} />
-          <Route path="/results/:testId" element={<PrivateRoute><ResultsPage /></PrivateRoute>} />
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
+                <DashboardPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/create-test"
+            element={
+              <PrivateRoute>
+                <CreateTestPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/edit-test/:testId"
+            element={
+              <PrivateRoute>
+                <CreateTestPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/results/:testId"
+            element={
+              <PrivateRoute>
+                <ResultsPage />
+              </PrivateRoute>
+            }
+          />
 
           <Route path="/" element={<LoginPage />} />
         </Routes>
       </main>
-    </Router>
+    </>
   );
 }
 
-export default App;
+// Wrap App with Router so useLocation works
+export default function AppWrapper() {
+  return (
+    <Router>
+      <App />
+    </Router>
+  );
+}

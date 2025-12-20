@@ -60,8 +60,18 @@ const resultSchema = new mongoose.Schema({
     type: Boolean,
     default: false, // Track if test was resumed
   },
+  warnings: [{
+    timestamp: {
+      type: Date,
+      default: Date.now
+    },
+    event: String // Warning event description (e.g., "No face detected", "Tab switched", etc.)
+  }],
 }, {
   timestamps: true
 });
+
+// Create a unique compound index to prevent duplicate submissions
+resultSchema.index({ test: 1, studentEmail: 1 }, { unique: true });
 
 module.exports = mongoose.model('Result', resultSchema);

@@ -470,6 +470,9 @@ const TestPage = () => {
     if(!started) return; // Prevent submitting before starting or after time is up from another tab
     
     try {
+      // Get warnings from sessionStorage
+      const warnings = JSON.parse(sessionStorage.getItem('testWarnings') || '[]');
+      
       const payload = {
         studentName,
         studentEmail,
@@ -478,9 +481,13 @@ const TestPage = () => {
         answers: answers.filter(a => a !== null && a !== undefined),
         codingAnswers: codingAnswers.filter(a => a !== null && a !== undefined), // 🆕 Include coding answers
         timeSpent,
-        isResumed
+        isResumed,
+        warnings // Include warnings collected during test
       };
       const response = await axios.post(`${API_URL}/api/results/submit`, payload);
+      
+      // Clear warnings from sessionStorage
+      sessionStorage.removeItem('testWarnings');
       
       // Mark test as completed
       await axios.post(`${API_URL}/api/progress/complete`, {

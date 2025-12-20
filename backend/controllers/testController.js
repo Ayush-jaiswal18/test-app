@@ -35,7 +35,7 @@ const normalizeSections = (sections = []) => {
 // @route   POST /api/tests
 // @access  Private (Admin)
 exports.createTest = async (req, res) => {
-  const { title, description, duration, questions, sections, allowResume } = req.body;
+  const { title, description, duration, questions, sections, allowResume, maxWarnings } = req.body;
   
   try {
     // Validate required fields
@@ -62,6 +62,14 @@ exports.createTest = async (req, res) => {
       createdBy: req.admin._id,
       isPublic: false, // Default to false
     };
+
+    // If admin provided maxWarnings, validate and include it
+    if (maxWarnings !== undefined) {
+      const parsed = Number(maxWarnings);
+      if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 20) {
+        testData.maxWarnings = parsed;
+      }
+    }
 
     // Add questions or sections based on what's provided
     if (sections && sections.length > 0) {

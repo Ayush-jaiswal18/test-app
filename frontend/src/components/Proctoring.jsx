@@ -133,6 +133,14 @@ const Proctoring = ({ onMaxWarnings, maxWarnings = 6 }) => {
   const reportEvent = async (type) => {
     console.warn(type);
     
+    // Store warning in sessionStorage for later submission
+    const warnings = JSON.parse(sessionStorage.getItem('testWarnings') || '[]');
+    warnings.push({
+      timestamp: new Date().toISOString(),
+      event: type
+    });
+    sessionStorage.setItem('testWarnings', JSON.stringify(warnings));
+    
     // Set warning severity based on type
     let severity = "low";
     if (type.includes("Multiple faces") || type.includes("Mobile phone")) {
@@ -146,12 +154,12 @@ const Proctoring = ({ onMaxWarnings, maxWarnings = 6 }) => {
       warningCountRef.current += 1;
       console.warn(`Warning count: ${warningCountRef.current}/${MAX_WARNINGS}`);
       
-      // At 5 warnings, show final warning alert
+      // At WARNING_THRESHOLD, show final warning alert
       if (warningCountRef.current === WARNING_THRESHOLD) {
-        alert("⚠️ FINAL WARNING: You have reached 5 warnings. The next violation will automatically submit your test.");
+        alert("⚠️ FINAL WARNING: You have reached " + WARNING_THRESHOLD + " warnings. The next violation will automatically submit your test.");
       }
       
-      // Auto-submit at 6 warnings without additional alert
+      // Auto-submit at MAX_WARNINGS without additional alert
       if (warningCountRef.current >= MAX_WARNINGS) {
         console.warn("Maximum warnings reached!");
         onMaxWarnings?.();

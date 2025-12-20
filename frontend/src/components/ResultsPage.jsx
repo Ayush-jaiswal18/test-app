@@ -298,6 +298,29 @@ const ResultsPage = () => {
                   <p className="text-gray-500">No sections found in this test.</p>
                 </div>
               )}
+
+              {/* Warnings Section */}
+              <div className="mt-8 p-4 bg-red-50 rounded-lg border border-red-200">
+                <h3 className="text-xl font-semibold mb-4 text-red-800">🚨 Proctoring Alerts</h3>
+                {selectedResult.warnings && selectedResult.warnings.length > 0 ? (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {selectedResult.warnings.map((warning, idx) => (
+                      <div key={idx} className="p-3 bg-white border border-red-200 rounded text-sm">
+                        <div className="flex justify-between items-start">
+                          <p className="font-semibold text-red-700">
+                            🚨 {warning.event}
+                          </p>
+                          <span className="text-xs text-gray-500">
+                            {new Date(warning.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-green-700 font-semibold">✓ No proctoring alerts during this test.</p>
+                )}
+              </div>
             </div>
           )}
         </div>

@@ -6,13 +6,27 @@ const TestProgress = require('../models/testProgressModel');
 // @route   POST /api/results/submit
 // @access  Public
 exports.submitTest = async (req, res) => {
-  const { studentName, studentEmail, rollNumber, testId, answers, codingAnswers, timeSpent, isResumed } = req.body;
+  const { studentName, studentEmail, rollNumber, testId, answers, codingAnswers, timeSpent, isResumed, warnings } = req.body;
 
   try {
     // Fetch the test to get correct answers
     const test = await Test.findById(testId);
     if (!test) {
       return res.status(404).json({ success: false, message: 'Test not found' });
+    }
+
+    // Check if this student has already submitted this test
+    const existingResult = await Result.findOne({ 
+      test: testId, 
+      studentEmail: studentEmail.toLowerCase() 
+    });
+
+    if (existingResult) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'You have already submitted this test. Each student can only submit once.',
+        submittedAt: existingResult.createdAt
+      });
     }
 
     let score = 0;
@@ -74,6 +88,7 @@ exports.submitTest = async (req, res) => {
       codingAnswers: codingAnswers || [], // 🆕 Save coding answers
       timeSpent: timeSpent || 0,
       isResumed: isResumed || false,
+      warnings: warnings || [], // Save warnings/proctoring events
     });
 
     // Mark test as completed in progress tracking

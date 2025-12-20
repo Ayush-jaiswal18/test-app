@@ -701,10 +701,13 @@ const TestPage = () => {
 
     return (
       <div className="min-h-screen w-full px-6 py-6">
-        <Proctoring onMaxWarnings={() => {
-          console.warn("Maximum warnings reached, auto-submitting test...");
-          handleSubmit();
-        }} />
+        <Proctoring 
+          maxWarnings={test.maxWarnings || 6}
+          onMaxWarnings={() => {
+            console.warn("Maximum warnings reached, auto-submitting test...");
+            handleSubmit();
+          }} 
+        />
         <div className="mb-6 border-b pb-4">
           <div className="mb-4">
             <h1 className="text-2xl font-bold">{test.title}</h1>

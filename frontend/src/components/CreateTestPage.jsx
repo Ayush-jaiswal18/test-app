@@ -20,6 +20,7 @@ const CreateTestPage = () => {
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(10);
   const [allowResume, setAllowResume] = useState(true);
+  const [maxWarnings, setMaxWarnings] = useState(6);
 
   const [sections, setSections] = useState([
     {
@@ -47,6 +48,7 @@ const CreateTestPage = () => {
           setDescription(testData.description);
           setDuration(testData.duration);
           setAllowResume(testData.allowResume ?? true);
+          setMaxWarnings(testData.maxWarnings ?? 6);
           setShareableLink(testData.shareableLink || '');
 
           if (testData.sections?.length > 0) {
@@ -228,6 +230,7 @@ const CreateTestPage = () => {
       description: description.trim(),
       duration: Number(duration),
       allowResume,
+      maxWarnings: Number(maxWarnings),
       questions: [],
       sections: sections.map(s => ({
         ...s,
@@ -311,6 +314,20 @@ const CreateTestPage = () => {
                 />
                 <span className="text-gray-700">Allow students to resume test if interrupted</span>
               </label>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-gray-700 font-semibold mb-2">Maximum Warnings (for proctoring)</label>
+              <input
+                type="number"
+                value={maxWarnings}
+                onChange={(e) => setMaxWarnings(e.target.value)}
+                min="1"
+                max="20"
+                className="w-full p-2 border rounded"
+                placeholder="Enter maximum number of warnings"
+              />
+              <p className="text-sm text-gray-500 mt-1">Customize the warning here </p>
             </div>
           </div>
 

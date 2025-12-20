@@ -93,6 +93,11 @@ const testSchema = new mongoose.Schema({
     type: Boolean,
     default: true, // Allow students to resume test if interrupted
   },
+  maxWarnings: {
+    type: Number,
+    min: 1,
+    max: 20
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,

@@ -5,12 +5,19 @@ import * as cam from "@mediapipe/camera_utils";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import '@tensorflow/tfjs';
 
-const Proctoring = ({ onMaxWarnings }) => {
+const Proctoring = ({ onMaxWarnings, maxWarnings = 6 }) => {
   const objectDetectorRef = useRef(null);
   const detectionIntervalRef = useRef(null);
   const warningCountRef = useRef(0);
-  const WARNING_THRESHOLD = 5;
-  const MAX_WARNINGS = 6;
+  const [currentMaxWarnings, setCurrentMaxWarnings] = React.useState(maxWarnings);
+  
+  // Update max warnings when prop changes
+  React.useEffect(() => {
+    setCurrentMaxWarnings(maxWarnings);
+  }, [maxWarnings]);
+
+  const WARNING_THRESHOLD = Math.max(1, currentMaxWarnings - 1);
+  const MAX_WARNINGS = currentMaxWarnings;
 
   useEffect(() => {
     const videoElement = document.getElementById("webcam");

@@ -197,10 +197,10 @@ const Proctoring = ({ onMaxWarnings }) => {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 w-48 sm:w-56">
+    <div className="fixed top-4 right-4 z-50 w-40">
       <div className="relative">
-        <video id="webcam" autoPlay playsInline width="240" height="180" className="w-full h-auto rounded-lg shadow-lg"></video>
-        <canvas id="output" width="240" height="180" className="absolute top-0 left-0 w-full h-full rounded-lg"></canvas>
+        <video id="webcam" autoPlay playsInline width="160" height="90" className="w-full h-auto rounded-lg shadow-lg"></video>
+        <canvas id="output" width="160" height="90" className="absolute top-0 left-0 w-full h-full rounded-lg"></canvas>
       </div>
       {warningVisible && (
         <div className={`px-3 py-1 rounded mt-2 flex items-center text-sm w-full ${

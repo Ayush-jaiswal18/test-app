@@ -94,5 +94,3 @@ export default function AppWrapper() {
     </Router>
   );
 }
-
-

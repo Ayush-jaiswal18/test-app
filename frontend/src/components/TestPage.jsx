@@ -705,8 +705,8 @@ const TestPage = () => {
           console.warn("Maximum warnings reached, auto-submitting test...");
           handleSubmit();
         }} />
-        <div className="flex justify-between items-center mb-6 border-b pb-4">
-          <div>
+        <div className="mb-6 border-b pb-4">
+          <div className="mb-4">
             <h1 className="text-2xl font-bold">{test.title}</h1>
             <p className="text-gray-600">
               Section {currentSection + 1} of {test.sections.length}: {currentSectionData.sectionTitle}
@@ -715,13 +715,22 @@ const TestPage = () => {
               <p className="text-sm text-gray-500">{currentSectionData.sectionDescription}</p>
             )}
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-semibold text-red-500">{formatTime(timeLeft)}</div>
-            <div className="text-sm text-gray-500">
-              {questionMode === 'mcq' 
-                ? `MCQ ${currentQuestion + 1} of ${hasMCQ ? currentSectionData.questions.length : 0}`
-                : `Coding ${currentCodingQuestion + 1} of ${hasCoding ? currentSectionData.codingQuestions.length : 0}`
-              }
+          <div className="flex justify-center gap-6 items-center py-2 bg-gray-50 rounded-lg">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-500">{formatTime(timeLeft)}</div>
+              <div className="text-xs text-gray-600 mt-0.5">Time Remaining</div>
+            </div>
+            <div className="w-px h-8 bg-gray-300"></div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {questionMode === 'mcq' 
+                  ? `${currentQuestion + 1}/${hasMCQ ? currentSectionData.questions.length : 0}`
+                  : `${currentCodingQuestion + 1}/${hasCoding ? currentSectionData.codingQuestions.length : 0}`
+                }
+              </div>
+              <div className="text-xs text-gray-600 mt-0.5">
+                {questionMode === 'mcq' ? 'MCQ Question' : 'Coding Question'}
+              </div>
             </div>
           </div>
         </div>
@@ -760,23 +769,29 @@ const TestPage = () => {
 
         {/* MCQ Questions */}
         {questionMode === 'mcq' && hasMCQ && (
-          <div className="mb-8">
-            <p className="text-xl font-semibold mb-4">
-              {currentQuestion + 1}. {currentQuestionData.questionText}
-            </p>
-            <div className="space-y-2">
-              {currentQuestionData.options.map((option, oIndex) => (
-                <label key={oIndex} className="flex items-center p-3 border rounded-lg hover:bg-gray-100 cursor-pointer">
-                  <input
-                    type="radio"
-                    name={`section-${currentSection}-question-${currentQuestion}`}
-                    className="mr-3"
-                    checked={currentAnswer && currentAnswer.selectedOption === oIndex}
-                    onChange={() => handleAnswerChange(currentSection, currentQuestion, oIndex)}
-                  />
-                  {option}
-                </label>
-              ))}
+          <div className="mb-8 flex gap-6 h-[calc(100vh-300px)]">
+            <div className="flex-1 bg-gray-50 p-8 rounded-lg border border-gray-200 overflow-y-auto">
+              <h3 className="text-sm font-bold text-gray-600 uppercase mb-4 sticky pt-0 bg-gray-50 py-2">Question</h3>
+              <p className="text-lg font-semibold text-gray-800">
+                {currentQuestion + 1}. {currentQuestionData.questionText}
+              </p>
+            </div>
+            <div className="flex-1 bg-white p-8 rounded-lg border border-gray-200 overflow-y-auto">
+              <h3 className="text-sm font-bold text-gray-600 uppercase mb-4 sticky top-0 bg-white py-2">Options</h3>
+              <div className="space-y-2">
+                {currentQuestionData.options.map((option, oIndex) => (
+                  <label key={oIndex} className="flex items-center p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition">
+                    <input
+                      type="radio"
+                      name={`section-${currentSection}-question-${currentQuestion}`}
+                      className="mr-3 w-4 h-4 flex-shrink-0"
+                      checked={currentAnswer && currentAnswer.selectedOption === oIndex}
+                      onChange={() => handleAnswerChange(currentSection, currentQuestion, oIndex)}
+                    />
+                    <span className="text-gray-700">{option}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
         )}

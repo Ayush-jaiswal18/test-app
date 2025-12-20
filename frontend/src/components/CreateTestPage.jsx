@@ -255,8 +255,8 @@ const CreateTestPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-lg max-w-lg mx-auto">
+    <div className="min-h-screen bg-gray-100 w-full pt-8 pb-8">
+      <div className="bg-white p-8 shadow-lg w-full h-full">
         <h2 className="text-3xl font-bold mb-6 text-center">
           {isEditing ? 'Edit Test' : 'Create a New Test'}
         </h2>

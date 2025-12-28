@@ -3,7 +3,8 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  useLocation
+  useLocation,
+  Navigate
 } from 'react-router-dom';
 
 import LoginPage from './components/LoginPage.jsx';
@@ -18,14 +19,13 @@ import Navbar from './components/Navbar.jsx';
 function App() {
   const location = useLocation();
 
-  // Hide Navbar only on test pages
   const hideNavbar = location.pathname.startsWith('/test');
 
-  // Center layout on test, create-test and edit-test pages
   const centerLayout =
     location.pathname.startsWith('/test') ||
     location.pathname.startsWith('/create-test') ||
-    location.pathname.startsWith('/edit-test');
+    location.pathname.startsWith('/edit-test') ||
+    location.pathname.startsWith('/admin');
 
   return (
     <>
@@ -39,13 +39,14 @@ function App() {
         }
       >
         <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
+          {/* ===== PUBLIC ROUTES ===== */}
+          <Route path="/admin/login" element={<LoginPage />} />
+          <Route path="/admin/signup" element={<SignupPage />} />
+
           <Route path="/test/share/:shareLink" element={<TestPage />} />
           <Route path="/test/:testId" element={<TestPage />} />
 
-          {/* Private Admin Routes */}
+          {/* ===== PRIVATE ADMIN ROUTES ===== */}
           <Route
             path="/dashboard"
             element={
@@ -54,6 +55,7 @@ function App() {
               </PrivateRoute>
             }
           />
+
           <Route
             path="/create-test"
             element={
@@ -62,6 +64,7 @@ function App() {
               </PrivateRoute>
             }
           />
+
           <Route
             path="/edit-test/:testId"
             element={
@@ -70,6 +73,7 @@ function App() {
               </PrivateRoute>
             }
           />
+
           <Route
             path="/results/:testId"
             element={
@@ -79,14 +83,14 @@ function App() {
             }
           />
 
-          <Route path="/" element={<LoginPage />} />
+          {/* ===== DEFAULT ===== */}
+          <Route path="/" element={<Navigate to="/admin/login" />} />
         </Routes>
       </main>
     </>
   );
 }
 
-// Wrap App with Router so useLocation works
 export default function AppWrapper() {
   return (
     <Router>

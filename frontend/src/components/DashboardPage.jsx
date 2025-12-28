@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+
 
 const DashboardPage = () => {
+  const navigate = useNavigate();
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -16,14 +18,25 @@ const DashboardPage = () => {
       });
       setTests(response.data.data);
     } catch (err) {
-      setError('Failed to fetch tests.');
-      console.error(err);
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/admin/login');
+      } else {
+        setError('Failed to fetch tests.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+      navigate('/admin/login');
+      return;
+    }
+
     fetchTests();
   }, []);
 

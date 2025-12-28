@@ -36,10 +36,17 @@ const CreateTestPage = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+
+    // 🔒 FRONTEND GUARD
+    if (!token) {
+      navigate('/admin/login');
+      return;
+    }
+
     if (isEditing) {
       const fetchTest = async () => {
         try {
-          const token = localStorage.getItem('token');
           const config = { headers: { Authorization: `Bearer ${token}` } };
           const response = await axios.get(`${API_URL}/api/tests/${testId}`, config);
           const testData = response.data.data;
@@ -58,20 +65,29 @@ const CreateTestPage = () => {
               codingQuestions: (section.codingQuestions || []).map(cq => ({
                 ...cq,
                 language: cq.language || 'javascript',
-                allowedLanguages: (cq.allowedLanguages && cq.allowedLanguages.length > 0)
-                  ? cq.allowedLanguages
-                  : [...SUPPORTED_LANGUAGES]
+                allowedLanguages:
+                  cq.allowedLanguages?.length > 0
+                    ? cq.allowedLanguages
+                    : [...SUPPORTED_LANGUAGES]
               }))
             }));
             setSections(sectionsWithTitles);
           }
         } catch (err) {
-          setError('Failed to fetch test data for editing.');
+          // ❌ Invalid / expired token
+          if (err.response?.status === 401) {
+            localStorage.removeItem('token');
+            navigate('/admin/login');
+          } else {
+            setError('Failed to fetch test data for editing.');
+          }
         }
       };
+
       fetchTest();
     }
-  }, [testId, isEditing, API_URL]);
+  }, [testId, isEditing, API_URL, navigate]);
+
 
   // Section Handlers
   const addSection = () => {
@@ -253,7 +269,12 @@ const CreateTestPage = () => {
       }
       navigate('/dashboard');
     } catch (err) {
-      setError('An error occurred while saving the test.');
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/admin/login');
+      } else {
+        setError('An error occurred while saving the test.');
+      }
     }
   };
 
@@ -519,9 +540,8 @@ const CreateTestPage = () => {
                             return (
                               <label
                                 key={lang}
-                                className={`flex items-center px-3 py-1 border rounded cursor-pointer text-sm ${
-                                  isSelected ? 'bg-blue-50 border-blue-400' : 'bg-gray-50 border-gray-300'
-                                }`}
+                                className={`flex items-center px-3 py-1 border rounded cursor-pointer text-sm ${isSelected ? 'bg-blue-50 border-blue-400' : 'bg-gray-50 border-gray-300'
+                                  }`}
                               >
                                 <input
                                   type="checkbox"

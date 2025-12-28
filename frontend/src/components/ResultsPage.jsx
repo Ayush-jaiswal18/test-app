@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import CodeEditor from './CodeEditor';
+import jsPDF from 'jspdf';
 
 const ResultsPage = () => {
   const { testId } = useParams();
+  const navigate = useNavigate();
   const [results, setResults] = useState([]);
   const [test, setTest] = useState(null);
   const [selectedResult, setSelectedResult] = useState(null);
@@ -14,26 +16,46 @@ const ResultsPage = () => {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+
+    // 🔒 FRONTEND AUTH GUARD
+    if (!token) {
+      navigate('/admin/login');
+      return;
+    }
+
     const fetchResults = async () => {
       try {
-        const token = localStorage.getItem('token');
         const config = { headers: { Authorization: `Bearer ${token}` } };
-        
-        const resultsRes = await axios.get(`${API_URL}/api/results/${testId}`, config);
+
+        const resultsRes = await axios.get(
+          `${API_URL}/api/results/${testId}`,
+          config
+        );
         setResults(resultsRes.data.data);
-        
-        const testRes = await axios.get(`${API_URL}/api/tests/${testId}/public`);
+
+        const testRes = await axios.get(
+          `${API_URL}/api/tests/${testId}/public`
+        );
         setTest(testRes.data.data);
 
       } catch (err) {
-        setError('Failed to fetch results.');
-        console.error(err);
+        // ❌ Token invalid / expired
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token');
+          navigate('/admin/login');
+        } else {
+          setError('Failed to fetch results.');
+        }
       } finally {
         setLoading(false);
       }
     };
+
     fetchResults();
-  }, [testId, API_URL]);
+  }, [testId, API_URL, navigate]);
+
+
 
   const fetchResultDetails = async (resultId) => {
     try {
@@ -42,8 +64,12 @@ const ResultsPage = () => {
       const response = await axios.get(`${API_URL}/api/results/${testId}/${resultId}`, config);
       setSelectedResult(response.data.data);
     } catch (err) {
-      setError('Failed to fetch result details.');
-      console.error(err);
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/admin/login');
+      } else {
+        setError('Failed to fetch result details.');
+      }
     }
   };
 
@@ -52,25 +78,30 @@ const ResultsPage = () => {
       setEvaluating({ [resultId]: true });
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      
+
       await axios.post(
         `${API_URL}/api/results/${resultId}/evaluate-coding`,
         { sectionIndex, codingQuestionIndex, score, feedback },
         config
       );
-      
+
       // Refresh results
       const resultsRes = await axios.get(`${API_URL}/api/results/${testId}`, config);
       setResults(resultsRes.data.data);
-      
+
       // Refresh selected result if viewing it
       if (selectedResult && selectedResult._id === resultId) {
         await fetchResultDetails(resultId);
       }
-      
+
       alert('Coding question evaluated successfully!');
     } catch (err) {
-      alert('Failed to evaluate coding question: ' + (err.response?.data?.message || err.message));
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/admin/login');
+      } else {
+        alert('Failed to evaluate coding question: ' + (err.response?.data?.message || err.message));
+      }
     } finally {
       setEvaluating({ [resultId]: false });
     }
@@ -78,6 +109,106 @@ const ResultsPage = () => {
 
   if (loading) return <p className="text-center mt-8">Loading results...</p>;
   if (error) return <p className="text-center mt-8 text-red-500">{error}</p>;
+
+  const downloadResultPDF = () => {
+    if (!selectedResult || !test) return;
+
+    const pdf = new jsPDF();
+    let y = 10;
+
+    // ===== HEADER =====
+    pdf.setFontSize(16);
+    pdf.text(`Result Sheet: ${test.title}`, 10, y);
+    y += 10;
+
+    pdf.setFontSize(12);
+    pdf.text(`Student Name: ${selectedResult.studentName}`, 10, y); y += 7;
+    pdf.text(`Roll Number: ${selectedResult.rollNumber}`, 10, y); y += 7;
+    pdf.text(`Email: ${selectedResult.studentEmail}`, 10, y); y += 7;
+    pdf.text(`Score: ${selectedResult.score} / ${selectedResult.totalMarks}`, 10, y); y += 7;
+    pdf.text(
+      `Time Spent: ${Math.floor(selectedResult.timeSpent / 60)} minutes`,
+      10,
+      y
+    );
+    y += 10;
+
+    // ===== PROCTORING ALERTS =====
+    pdf.setFontSize(14);
+    pdf.text("Proctoring Alerts:", 10, y);
+    y += 8;
+
+    if (selectedResult.warnings && selectedResult.warnings.length > 0) {
+      selectedResult.warnings.forEach((w, i) => {
+        if (y > 280) {
+          pdf.addPage();
+          y = 10;
+        }
+        pdf.setFontSize(10);
+        pdf.text(
+          `${i + 1}. ${w.event} (${new Date(w.timestamp).toLocaleString()})`,
+          10,
+          y
+        );
+        y += 6;
+      });
+    } else {
+      pdf.setFontSize(10);
+      pdf.text("No proctoring alerts during this test.", 10, y);
+      y += 6;
+    }
+
+    // ===== MCQ QUESTIONS & ANSWERS =====
+    pdf.addPage();
+    y = 10;
+
+    pdf.setFontSize(14);
+    pdf.text("MCQ Questions & Answers", 10, y);
+    y += 10;
+
+    test.sections.forEach((section, sIdx) => {
+      pdf.setFontSize(12);
+      pdf.text(`Section ${sIdx + 1}: ${section.sectionTitle}`, 10, y);
+      y += 8;
+
+      section.questions.forEach((question, qIdx) => {
+        if (y > 270) {
+          pdf.addPage();
+          y = 10;
+        }
+
+        const answer = selectedResult.answers.find(
+          (a) => a.sectionIndex === sIdx && a.questionIndex === qIdx
+        );
+
+        const selectedIndex = answer?.selectedOption;
+        const selectedAnswer =
+          selectedIndex !== undefined
+            ? question.options[selectedIndex]
+            : "Not Answered";
+
+        const correctAnswer =
+          question.options[question.correctAnswer];
+
+        pdf.setFontSize(11);
+        pdf.text(`Q${qIdx + 1}: ${question.questionText}`, 10, y);
+        y += 6;
+
+        pdf.setFontSize(10);
+        pdf.text(`Selected Answer: ${selectedAnswer}`, 12, y);
+        y += 5;
+
+        pdf.text(`Correct Answer: ${correctAnswer}`, 12, y);
+        y += 8;
+      });
+
+      y += 5;
+    });
+
+    // ===== SAVE PDF =====
+    pdf.save(`${selectedResult.studentName}_Result.pdf`);
+  };
+
 
   return (
     <div className="bg-white p-8 rounded-lg shadow-lg max-w-7xl mx-auto">
@@ -132,16 +263,27 @@ const ResultsPage = () => {
           {/* Detailed View */}
           {selectedResult && test && (
             <div className="mt-8 p-6 border-2 border-blue-200 rounded-lg bg-gray-50">
+
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">
                   Detailed View: {selectedResult.studentName}
                 </h2>
-                <button
-                  onClick={() => setSelectedResult(null)}
-                  className="text-gray-600 hover:text-gray-800"
-                >
-                  ✕ Close
-                </button>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={downloadResultPDF}
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
+                  >
+                    ⬇️ Download PDF
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedResult(null)}
+                    className="text-gray-600 hover:text-gray-800"
+                  >
+                    ✕ Close
+                  </button>
+                </div>
               </div>
 
               <div className="mb-4 p-3 bg-blue-100 rounded">
@@ -159,11 +301,11 @@ const ResultsPage = () => {
 
                     {/* MCQ Questions */}
                     {section.questions.map((question, qIdx) => {
-                      const answer = selectedResult.answers.find(a => 
+                      const answer = selectedResult.answers.find(a =>
                         a.sectionIndex === sIdx && a.questionIndex === qIdx
                       );
                       const isCorrect = answer && answer.selectedOption === question.correctAnswer;
-                      
+
                       return (
                         <div key={qIdx} className="mb-4 p-3 border rounded">
                           <p className="font-semibold mb-2">
@@ -173,13 +315,12 @@ const ResultsPage = () => {
                             {question.options.map((option, oIdx) => (
                               <div
                                 key={oIdx}
-                                className={`p-2 mb-1 rounded ${
-                                  oIdx === question.correctAnswer
-                                    ? 'bg-green-100 border-green-300'
-                                    : answer && answer.selectedOption === oIdx && !isCorrect
+                                className={`p-2 mb-1 rounded ${oIdx === question.correctAnswer
+                                  ? 'bg-green-100 border-green-300'
+                                  : answer && answer.selectedOption === oIdx && !isCorrect
                                     ? 'bg-red-100 border-red-300'
                                     : 'bg-gray-50'
-                                }`}
+                                  }`}
                               >
                                 {option}
                                 {oIdx === question.correctAnswer && ' ✓ Correct'}
@@ -199,10 +340,10 @@ const ResultsPage = () => {
                       <div className="mt-6">
                         <h4 className="text-lg font-semibold mb-3">Coding Questions</h4>
                         {section.codingQuestions.map((codingQuestion, cqIdx) => {
-                          const codingAnswer = selectedResult.codingAnswers?.find(a => 
+                          const codingAnswer = selectedResult.codingAnswers?.find(a =>
                             a.sectionIndex === sIdx && a.codingQuestionIndex === cqIdx
                           );
-                          
+
                           return (
                             <div key={cqIdx} className="mb-6 p-4 border-2 border-purple-200 rounded-lg bg-white">
                               <h5 className="text-lg font-semibold mb-2">

@@ -370,7 +370,7 @@ const CreateTestPage = () => {
             {sections.map((section, sIndex) => (
               <div key={sIndex} className="mb-8 p-6 border-2 border-blue-200 rounded-lg bg-blue-50">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-xl font-semibold text-blue-800">Section {sIndex + 1}</h4>
+                  <h4 className="text-xl font-semibold text-black">Section {sIndex + 1}</h4>
                   {sections.length > 1 && (
                     <button
                       type="button"

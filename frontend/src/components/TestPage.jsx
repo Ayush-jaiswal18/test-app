@@ -28,6 +28,11 @@ const TestPage = () => {
   const [savedProgress, setSavedProgress] = useState(null);
   const [error, setError] = useState('');
   const [isResumed, setIsResumed] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [agreedToInstructions, setAgreedToInstructions] = useState(false);
+  const [showSectionPreview, setShowSectionPreview] = useState(false);
+  const [previewSectionIndex, setPreviewSectionIndex] = useState(0);
+  const [viewedSections, setViewedSections] = useState(new Set());
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   // Auto-switch to coding questions if no MCQ questions in current section
@@ -141,6 +146,7 @@ const TestPage = () => {
         });
         setSubmitted(true);
         setStarted(false);
+        setShowInstructions(false);
         return;
       }
 
@@ -164,6 +170,7 @@ const TestPage = () => {
         
         setSavedProgress(savedData);
         setShowResumeDialog(true);
+        setShowInstructions(false);
       } catch (progressErr) {
         // No existing progress found, which is fine
         setSavedProgress(null);
@@ -208,6 +215,11 @@ const TestPage = () => {
   }, [started, saveProgress]);
 
   const handleStart = async () => {
+    if (!agreedToInstructions) {
+      alert('Please read and agree to the test instructions before starting the test.');
+      return;
+    }
+
     if (studentName.trim() && studentEmail.trim() && rollNumber.trim()) {
       await checkExistingProgress(studentEmail);
       
@@ -240,7 +252,12 @@ const TestPage = () => {
           timeLeft: test.duration * 60
         });
         
+        setShowInstructions(false);
         setStarted(true);
+        // Show preview for the first section
+        setPreviewSectionIndex(0);
+        setShowSectionPreview(true);
+        setViewedSections(new Set());
       }
     } else {
       alert('Please enter your name, email, and roll number.');
@@ -249,8 +266,16 @@ const TestPage = () => {
 
   const handleResumeTest = () => {
     if (savedProgress) {
-      setCurrentSection(savedProgress.currentSection || 0);
+      const resumeSection = savedProgress.currentSection || 0;
+      setCurrentSection(resumeSection);
       setCurrentQuestion(savedProgress.currentQuestion || 0);
+      
+      // Mark all sections up to and including the current section as viewed
+      const viewedSet = new Set();
+      for (let i = 0; i <= resumeSection; i++) {
+        viewedSet.add(i);
+      }
+      setViewedSections(viewedSet);
       
       // Clean up answers array - remove any null/undefined values and ensure number types
       const cleanAnswers = (savedProgress.answers || []).filter(answer => 
@@ -324,6 +349,7 @@ const TestPage = () => {
       }, 500);
     }
     setShowResumeDialog(false);
+    setShowInstructions(false);
     setStarted(true);
   };
 
@@ -346,7 +372,12 @@ const TestPage = () => {
     });
     
     setShowResumeDialog(false);
+    setShowInstructions(false);
     setStarted(true);
+    // Show preview for the first section
+    setPreviewSectionIndex(0);
+    setShowSectionPreview(true);
+    setViewedSections(new Set());
   };
 
   const handleAnswerChange = (sectionIndex, questionIndex, optionIndex) => {
@@ -503,19 +534,18 @@ const TestPage = () => {
     }
   };
 
-  const navigateSection = (direction) => {
+  const navigateToSection = (sectionIndex) => {
     if (!test.sections) return;
     
-    const newSection = direction === 'next' 
-      ? Math.min(currentSection + 1, test.sections.length - 1)
-      : Math.max(currentSection - 1, 0);
-    
-    setCurrentSection(newSection);
+    setCurrentSection(sectionIndex);
     setCurrentQuestion(0);
     setCurrentCodingQuestion(0);
     
+    // Mark section as viewed
+    setViewedSections(prev => new Set(prev).add(sectionIndex));
+    
     // Auto-switch mode based on available questions in new section
-    const newSectionData = test.sections[newSection];
+    const newSectionData = test.sections[sectionIndex];
     const hasMCQ = newSectionData.questions && newSectionData.questions.length > 0;
     const hasCoding = newSectionData.codingQuestions && newSectionData.codingQuestions.length > 0;
     
@@ -523,6 +553,26 @@ const TestPage = () => {
       setQuestionMode('coding');
     } else if (hasMCQ) {
       setQuestionMode('mcq');
+    }
+    
+    setShowSectionPreview(false);
+  };
+
+  const navigateSection = (direction) => {
+    if (!test.sections) return;
+    
+    const newSection = direction === 'next' 
+      ? Math.min(currentSection + 1, test.sections.length - 1)
+      : Math.max(currentSection - 1, 0);
+    
+    // Check if we've already viewed this section
+    if (viewedSections.has(newSection)) {
+      // Already viewed, navigate directly
+      navigateToSection(newSection);
+    } else {
+      // Not viewed yet, show preview
+      setPreviewSectionIndex(newSection);
+      setShowSectionPreview(true);
     }
   };
 
@@ -601,7 +651,7 @@ const TestPage = () => {
     );
   }
 
-  if (!started) {
+  if (!started && !showInstructions) {
     return (
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-lg mx-auto">
         <h1 className="text-3xl font-bold mb-2">{test.title}</h1>
@@ -641,9 +691,136 @@ const TestPage = () => {
             </p>
           </div>
         )}
-        <button onClick={handleStart} className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
-          Start Test
+        <button 
+          onClick={() => {
+            if (studentName.trim() && studentEmail.trim() && rollNumber.trim()) {
+              setShowInstructions(true);
+            } else {
+              alert('Please enter your name, email, and roll number.');
+            }
+          }} 
+          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
+        >
+          Continue
         </button>
+      </div>
+    );
+  }
+
+  // Instruction box
+  if (!started && showInstructions) {
+    return (
+      <div className="bg-white p-8 rounded-lg shadow-lg max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold mb-4">{test.title}</h1>
+        <h2 className="text-2xl font-semibold mb-4">Test Instructions</h2>
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="space-y-3 text-gray-700">
+            <p><strong>Duration:</strong> {test.duration} minutes</p>
+            <p><strong>Instructions:</strong></p>
+            <ul className="list-disc list-inside space-y-2 ml-4">
+              <li>Read each question carefully before answering.</li>
+              <li>Ensure you have a stable internet connection throughout the test.</li>
+              <li>Do not navigate away from the test page or open other tabs.</li>
+              <li>The timer will continue running even if you close the browser accidentally.</li>
+              <li>Once submitted, you cannot change your answers.</li>
+              {test.allowResume && (
+                <li>You can resume this test from where you left off if you get disconnected.</li>
+              )}
+            </ul>
+            {test.description && (
+              <div className="mt-4 pt-4 border-t border-gray-300">
+                <p><strong>Test Description:</strong></p>
+                <p className="mt-2">{test.description}</p>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="mb-6">
+          <label className="flex items-center space-x-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreedToInstructions}
+              onChange={(e) => setAgreedToInstructions(e.target.checked)}
+              className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700 font-medium">
+              I have read and understood the test instructions. I agree to proceed with the test.
+            </span>
+          </label>
+        </div>
+        <div className="flex space-x-4">
+          <button
+            onClick={() => {
+              setShowInstructions(false);
+              setAgreedToInstructions(false);
+            }}
+            className="flex-1 bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition"
+          >
+            Back
+          </button>
+          <button
+            onClick={handleStart}
+            disabled={!agreedToInstructions}
+            className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Start Test
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Section preview dialog
+  if (started && showSectionPreview && test.sections && test.sections.length > 0) {
+    const previewSectionData = test.sections[previewSectionIndex];
+    const hasMCQ = previewSectionData.questions && previewSectionData.questions.length > 0;
+    const hasCoding = previewSectionData.codingQuestions && previewSectionData.codingQuestions.length > 0;
+    const totalQuestions = (hasMCQ ? previewSectionData.questions.length : 0) + (hasCoding ? previewSectionData.codingQuestions.length : 0);
+    
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-2xl w-full">
+          <h1 className="text-3xl font-bold mb-2">{test.title}</h1>
+          <h2 className="text-2xl font-semibold mb-6 text-blue-600">
+            Section {previewSectionIndex + 1} of {test.sections.length}
+          </h2>
+          
+          <div className="mb-6">
+            <h3 className="text-xl font-bold mb-3">{previewSectionData.sectionTitle}</h3>
+            {previewSectionData.sectionDescription && (
+              <p className="text-gray-700 mb-4">{previewSectionData.sectionDescription}</p>
+            )}
+          </div>
+
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 className="font-semibold mb-3 text-gray-800">Section Overview:</h4>
+            <div className="space-y-2 text-gray-700">
+              <p><strong>Total Questions:</strong> {totalQuestions}</p>
+              {hasMCQ && (
+                <p><strong>Multiple Choice Questions:</strong> {previewSectionData.questions.length}</p>
+              )}
+              {hasCoding && (
+                <p><strong>Coding Questions:</strong> {previewSectionData.codingQuestions.length}</p>
+              )}
+              {previewSectionData.timeLimit && (
+                <p><strong>Section Time Limit:</strong> {previewSectionData.timeLimit} minutes</p>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> Please review the section information above. Once you proceed, you'll be able to answer questions in this section.
+            </p>
+          </div>
+
+          <button
+            onClick={() => navigateToSection(previewSectionIndex)}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold text-lg"
+          >
+            Start Section {previewSectionIndex + 1}
+          </button>
+        </div>
       </div>
     );
   }

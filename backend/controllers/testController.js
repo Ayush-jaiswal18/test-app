@@ -236,16 +236,63 @@ exports.getTestByShareLink = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Test not found or link has expired' });
     }
 
+    // Helper function to shuffle array (Fisher-Yates algorithm)
+    const shuffleArray = (array) => {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    };
+
+    // Helper function to add original index to questions
+    const addOriginalIndex = (questions) => {
+      return questions.map((q, index) => ({
+        ...q.toObject ? q.toObject() : q,
+        originalIndex: index
+      }));
+    };
+
     // Remove correct answers before sending to student
     const testForStudent = { ...test.toObject() };
     
     // Handle both old questions format and new sections format
     if (testForStudent.sections && testForStudent.sections.length > 0) {
-      testForStudent.sections.forEach(section => {
-        section.questions.forEach(q => delete q.correctAnswer);
+      testForStudent.sections = testForStudent.sections.map(section => {
+        // Add original index to each question before shuffling
+        const questionsWithIndex = addOriginalIndex(section.questions || []);
+        const codingQuestionsWithIndex = addOriginalIndex(section.codingQuestions || []);
+        
+        // Shuffle questions for each student
+        const shuffledQuestions = shuffleArray(questionsWithIndex);
+        const shuffledCodingQuestions = shuffleArray(codingQuestionsWithIndex);
+        
+        // Remove correct answers and acceptable answers (keep them secret)
+        shuffledQuestions.forEach(q => {
+          delete q.correctAnswer;
+          delete q.acceptableAnswers;
+          delete q.caseSensitive;
+        });
+        
+        return {
+          ...section,
+          questions: shuffledQuestions,
+          codingQuestions: shuffledCodingQuestions
+        };
       });
     } else if (testForStudent.questions && testForStudent.questions.length > 0) {
-      testForStudent.questions.forEach(q => delete q.correctAnswer);
+      // Add original index before shuffling
+      const questionsWithIndex = addOriginalIndex(testForStudent.questions);
+      const shuffledQuestions = shuffleArray(questionsWithIndex);
+      
+      shuffledQuestions.forEach(q => {
+        delete q.correctAnswer;
+        delete q.acceptableAnswers;
+        delete q.caseSensitive;
+      });
+      
+      testForStudent.questions = shuffledQuestions;
     }
 
     res.status(200).json({ success: true, data: testForStudent });

@@ -37,7 +37,8 @@ const resultSchema = new mongoose.Schema({
       default: 0, // For backward compatibility
     },
     questionIndex: Number,
-    selectedOption: Number,
+    originalQuestionIndex: Number, // Original index for randomized questions
+    selectedOption: mongoose.Schema.Types.Mixed, // Can be Number or String for fill-blank
   }],
   // Coding question answers
   codingAnswers: [{

@@ -1,4 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+	:root {
+		color-scheme: light;
+		--color-primary: #123456;
+		--color-secondary: #ff6600;
+		--color-text-primary: #222222;
+		--color-text-secondary: #555555;
+		--color-bg-main: #ffffff;
+		--color-bg-alt: #f9f9f9;
+		--color-border: #e0e0e0;
+		--color-btn-hover: #cc5500;
+	}
+
+	body {
+		@apply bg-brand-soft text-brand-dark;
+		font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+	}
+
+	a {
+		@apply text-brand-secondary hover:text-brand-primary transition-colors;
+	}
+}
 

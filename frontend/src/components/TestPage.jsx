@@ -386,9 +386,21 @@ const TestPage = () => {
     const qIdx = parseInt(questionIndex, 10);
     const oIdx = parseInt(optionIndex, 10);
     
+    // Get the original index from the question object (for randomized questions)
+    let originalQuestionIndex = qIdx;
+    if (test.sections && test.sections.length > 0) {
+      const currentSectionData = test.sections[sIdx];
+      if (currentSectionData && currentSectionData.questions && currentSectionData.questions[qIdx]) {
+        originalQuestionIndex = currentSectionData.questions[qIdx].originalIndex !== undefined 
+          ? currentSectionData.questions[qIdx].originalIndex 
+          : qIdx;
+      }
+    }
+    
     console.log('🎯 ANSWER CHANGE - Type conversion:', {
       original: { sectionIndex, questionIndex, optionIndex },
       converted: { sIdx, qIdx, oIdx },
+      originalQuestionIndex,
       types: {
         original: { s: typeof sectionIndex, q: typeof questionIndex, o: typeof optionIndex },
         converted: { s: typeof sIdx, q: typeof qIdx, o: typeof oIdx }
@@ -399,8 +411,18 @@ const TestPage = () => {
     const cleanAnswers = answers.filter(a => a && a.hasOwnProperty('questionIndex'));
     
     const answerObj = test.sections && test.sections.length > 0
-      ? { sectionIndex: sIdx, questionIndex: qIdx, selectedOption: oIdx }
-      : { sectionIndex: 0, questionIndex: qIdx, selectedOption: oIdx }; // Always include sectionIndex for consistency
+      ? { 
+          sectionIndex: sIdx, 
+          questionIndex: qIdx, 
+          originalQuestionIndex: originalQuestionIndex, // Store original index for backend
+          selectedOption: oIdx 
+        }
+      : { 
+          sectionIndex: 0, 
+          questionIndex: qIdx, 
+          originalQuestionIndex: originalQuestionIndex, // Store original index for backend
+          selectedOption: oIdx 
+        }; // Always include sectionIndex for consistency
 
     // Find existing answer and update or add new one
     const existingIndex = cleanAnswers.findIndex(a => {
@@ -442,6 +464,7 @@ const TestPage = () => {
           currentSection,
           currentQuestion,
           answers: cleanAnswers,
+          codingAnswers, // 🆕 Include coding answers
           timeSpent
         }).then(() => {
           console.log('✅ Delayed save completed');
@@ -449,7 +472,7 @@ const TestPage = () => {
           console.error('❌ Delayed save failed:', err);
         });
       }
-    }, 500); // 500ms delay
+    }, 1000);
   };
 
   // 🆕 Handle coding answer changes
@@ -597,23 +620,250 @@ const TestPage = () => {
   if (!test) return <p className="text-center mt-8">Loading test...</p>;
 
   if (submitted) {
+    const shouldShowScore = score.showScoreToStudents !== false; // Default to true for backward compatibility
+    const percentage = score.totalMarks > 0 ? Math.round((score.score / score.totalMarks) * 100) : 0;
+    const isPassed = percentage >= 50; // Consider 50% as passing
+    
     return (
-      <div className="bg-white p-8 rounded-lg shadow-lg max-w-2xl mx-auto text-center">
-        <h2 className="text-3xl font-bold mb-4">
-          {score.submittedAt ? 'Test Already Submitted!' : 'Test Submitted!'}
-        </h2>
-        <p className="text-xl">Thank you, {studentName}.</p>
-        <p className="text-2xl mt-6">Your Score: <span className="font-bold text-blue-600">{score.score}</span> / {score.totalMarks}</p>
-        {score.submittedAt && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-            <p className="text-gray-600">
-              <strong>Submitted on:</strong> {new Date(score.submittedAt).toLocaleString()}
-            </p>
-            <p className="text-sm text-gray-500 mt-2">
-              You cannot retake this test as it has already been submitted with this email address.
-            </p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+        <div className="max-w-2xl mx-auto">
+          {/* Score Hidden Notice */}
+          {!shouldShowScore && (
+            <div>
+              {/* Success Icon Animation */}
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 shadow-lg mb-4 animate-bounce">
+                  <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h1 className="text-4xl font-bold text-gray-800 mb-2">Test Submitted Successfully!</h1>
+                <p className="text-lg text-gray-600">Your answers have been recorded</p>
+              </div>
+
+              {/* Main Info Card */}
+              <div className="bg-white rounded-2xl shadow-xl p-8 mb-6 border-t-4 border-blue-500">
+                <div className="flex items-start mb-6">
+                  <div className="flex-shrink-0 w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                    <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14 16a2 2 0 100-4 2 2 0 000 4zM6 16a2 2 0 100-4 2 2 0 000 4z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-3">What happens next?</h2>
+                    <div className="space-y-4">
+                      <div className="flex items-start">
+                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 text-green-600 font-semibold text-sm flex items-center justify-center mr-3 mt-0.5">1</span>
+                        <p className="text-gray-700">Your test has been securely submitted and saved in our system.</p>
+                      </div>
+                      <div className="flex items-start">
+                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 text-green-600 font-semibold text-sm flex items-center justify-center mr-3 mt-0.5">2</span>
+                        <p className="text-gray-700">The instructor will review your submission and grade it accordingly.</p>
+                      </div>
+                      <div className="flex items-start">
+                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 text-green-600 font-semibold text-sm flex items-center justify-center mr-3 mt-0.5">3</span>
+                        <p className="text-gray-700">You will be notified once your results are available.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg">
+                  <div className="flex">
+                    <svg className="w-5 h-5 text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <h3 className="text-sm font-semibold text-amber-800 mb-1">About Your Score</h3>
+                      <p className="text-sm text-amber-700">
+                        The instructor has chosen not to display scores immediately. Your detailed results and feedback will be shared with you once the evaluation is complete.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Student Info Card */}
+              <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                  </svg>
+                  Submission Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Student Name</p>
+                    <p className="font-semibold text-gray-900">{studentName}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Email</p>
+                    <p className="font-semibold text-gray-900">{studentEmail}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Roll Number</p>
+                    <p className="font-semibold text-gray-900">{rollNumber}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Test Name</p>
+                    <p className="font-semibold text-gray-900">{test.title}</p>
+                  </div>
+                  {score.submittedAt && (
+                    <div className="bg-gray-50 p-4 rounded-lg md:col-span-2">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Submitted On</p>
+                      <p className="font-semibold text-gray-900">{new Date(score.submittedAt).toLocaleString()}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Confirmation Message */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6 text-center">
+                <svg className="w-16 h-16 mx-auto text-green-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 className="text-xl font-bold text-green-800 mb-2">Your submission has been recorded</h3>
+                <p className="text-green-700 text-sm">You may now close this page. Thank you for completing the test!</p>
+              </div>
+            </div>
+          )}
+
+          {/* Success Banner */}
+          {shouldShowScore && (
+            <div className={`mb-6 p-6 rounded-lg shadow-lg ${isPassed ? 'bg-green-50 border-l-4 border-green-500' : 'bg-yellow-50 border-l-4 border-yellow-500'}`}>
+              <div className="flex items-center mb-3">
+                {isPassed ? (
+                  <svg className="w-8 h-8 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="w-8 h-8 text-yellow-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                )}
+                <h2 className={`text-2xl font-bold ${isPassed ? 'text-green-700' : 'text-yellow-700'}`}>
+                  {isPassed ? '🎉 Congratulations!' : '⏳ Test Submitted'}
+                </h2>
+              </div>
+              <p className={`text-sm ${isPassed ? 'text-green-600' : 'text-yellow-600'}`}>
+                {isPassed 
+                  ? 'You have successfully passed the test!'
+                  : 'Your test has been submitted successfully.'}
+              </p>
+            </div>
+          )}
+
+          {/* Score Card - Only show if enabled */}
+          {shouldShowScore && (
+            <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+              <div className="text-center mb-8">
+                <h3 className="text-gray-600 text-sm uppercase tracking-wide mb-2">Your Score</h3>
+                <div className="flex items-center justify-center gap-4">
+                  <div className="relative w-32 h-32">
+                    <svg className="w-32 h-32 transform -rotate-90">
+                      <circle cx="64" cy="64" r="60" fill="none" stroke="#e5e7eb" strokeWidth="8" />
+                      <circle 
+                        cx="64" 
+                        cy="64" 
+                        r="60" 
+                        fill="none" 
+                        stroke={isPassed ? '#10b981' : '#f59e0b'} 
+                        strokeWidth="8"
+                        strokeDasharray={`${(percentage / 100) * 376.99} 376.99`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold text-gray-800">{percentage}%</span>
+                      <span className="text-xs text-gray-500">Complete</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 mb-2">Marks Obtained</p>
+                    <p className="text-4xl font-bold text-blue-600 mb-4">{score.score}/{score.totalMarks}</p>
+                    <p className={`text-sm font-semibold px-3 py-1 rounded-full inline-block ${
+                      isPassed 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {isPassed ? 'PASSED' : 'SUBMITTED'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Performance Details - Only show if enabled */}
+          {shouldShowScore && (
+            <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-6">Test Details</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border-l-4 border-blue-500 pl-4">
+                  <p className="text-gray-600 text-sm">Test Name</p>
+                  <p className="text-gray-900 font-semibold">{test.title}</p>
+                </div>
+                <div className="border-l-4 border-purple-500 pl-4">
+                  <p className="text-gray-600 text-sm">Total Questions</p>
+                  <p className="text-gray-900 font-semibold">{score.totalMarks}</p>
+                </div>
+                <div className="border-l-4 border-green-500 pl-4">
+                  <p className="text-gray-600 text-sm">Time Taken</p>
+                  <p className="text-gray-900 font-semibold">
+                    {Math.floor(timeSpent / 60)} min {timeSpent % 60} sec
+                  </p>
+                </div>
+                <div className="border-l-4 border-orange-500 pl-4">
+                  <p className="text-gray-600 text-sm">Correct Answers</p>
+                  <p className="text-gray-900 font-semibold">{score.score} questions</p>
+                </div>
+                <div className="border-l-4 border-red-500 pl-4">
+                  <p className="text-gray-600 text-sm">Wrong Answers</p>
+                  <p className="text-gray-900 font-semibold">{score.totalMarks - score.score} questions</p>
+                </div>
+                <div className="border-l-4 border-indigo-500 pl-4">
+                  <p className="text-gray-600 text-sm">Accuracy</p>
+                  <p className="text-gray-900 font-semibold">{percentage}%</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Student Info - Always show */}
+          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Student Information</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-gray-600">Name</span>
+                <span className="font-semibold text-gray-900">{studentName}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-gray-600">Email</span>
+                <span className="font-semibold text-gray-900">{studentEmail}</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-gray-600">Roll Number</span>
+                <span className="font-semibold text-gray-900">{rollNumber}</span>
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* Submission Time - Show for all */}
+          {score.submittedAt && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zm-11-1a1 1 0 11-2 0 1 1 0 012 0zM8 7a1 1 0 000 2h6a1 1 0 000-2H8zm0 3a1 1 0 000 2h6a1 1 0 000-2H8z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">Submitted on</p>
+                  <p className="text-sm text-blue-700">{new Date(score.submittedAt).toLocaleString()}</p>
+                  <p className="text-xs text-blue-600 mt-2">✓ Your test submission has been recorded.</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -959,26 +1209,61 @@ const TestPage = () => {
           <div className="mb-8 flex gap-6 h-[calc(100vh-300px)]">
             <div className="flex-1 bg-gray-50 p-8 rounded-lg border border-gray-200 overflow-y-auto">
               <h3 className="text-sm font-bold text-gray-600 uppercase mb-4 sticky pt-0 bg-gray-50 py-2">Question</h3>
+              
+              {/* Image-based question image */}
+              {currentQuestionData.questionType === 'image-based' && currentQuestionData.imageUrl && (
+                <div className="mb-4">
+                  <img 
+                    src={currentQuestionData.imageUrl} 
+                    alt="Question" 
+                    className="max-w-full h-auto rounded-lg border border-gray-300"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                </div>
+              )}
+              
               <p className="text-lg font-semibold text-gray-800">
                 {currentQuestion + 1}. {currentQuestionData.questionText}
               </p>
             </div>
             <div className="flex-1 bg-white p-8 rounded-lg border border-gray-200 overflow-y-auto">
-              <h3 className="text-sm font-bold text-gray-600 uppercase mb-4 sticky top-0 bg-white py-2">Options</h3>
-              <div className="space-y-2">
-                {currentQuestionData.options.map((option, oIndex) => (
-                  <label key={oIndex} className="flex items-center p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition">
-                    <input
-                      type="radio"
-                      name={`section-${currentSection}-question-${currentQuestion}`}
-                      className="mr-3 w-4 h-4 flex-shrink-0"
-                      checked={currentAnswer && currentAnswer.selectedOption === oIndex}
-                      onChange={() => handleAnswerChange(currentSection, currentQuestion, oIndex)}
-                    />
-                    <span className="text-gray-700">{option}</span>
-                  </label>
-                ))}
-              </div>
+              <h3 className="text-sm font-bold text-gray-600 uppercase mb-4 sticky top-0 bg-white py-2">
+                {currentQuestionData.questionType === 'fill-blank' ? 'Answer' : 'Options'}
+              </h3>
+              
+              {/* Fill in the Blank */}
+              {currentQuestionData.questionType === 'fill-blank' && (
+                <div>
+                  <input
+                    type="text"
+                    value={currentAnswer?.selectedOption || ''}
+                    onChange={(e) => handleAnswerChange(currentSection, currentQuestion, e.target.value)}
+                    placeholder="Type your answer here"
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">Case Sensitive: {currentQuestionData.caseSensitive ? 'Yes' : 'No'}</p>
+                </div>
+              )}
+              
+              {/* MCQ, True/False, and Image-based options */}
+              {(currentQuestionData.questionType === 'mcq' || 
+                currentQuestionData.questionType === 'true-false' || 
+                currentQuestionData.questionType === 'image-based') && (
+                <div className="space-y-2">
+                  {currentQuestionData.options && currentQuestionData.options.map((option, oIndex) => (
+                    <label key={oIndex} className="flex items-center p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition">
+                      <input
+                        type="radio"
+                        name={`section-${currentSection}-question-${currentQuestion}`}
+                        className="mr-3 w-4 h-4 flex-shrink-0"
+                        checked={currentAnswer && currentAnswer.selectedOption === oIndex}
+                        onChange={() => handleAnswerChange(currentSection, currentQuestion, oIndex)}
+                      />
+                      <span className="text-gray-700">{option}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

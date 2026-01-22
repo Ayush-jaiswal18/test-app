@@ -33,7 +33,8 @@ const testProgressSchema = new mongoose.Schema({
   answers: [{
     sectionIndex: Number,
     questionIndex: Number,
-    selectedOption: Number,
+    originalQuestionIndex: Number, // For randomized questions
+    selectedOption: mongoose.Schema.Types.Mixed, // Can be Number or String for fill-blank
   }],
   codingAnswers: [{
     sectionIndex: Number,

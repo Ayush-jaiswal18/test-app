@@ -2,6 +2,16 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 
+// Small helper to render a check item similar to the Progrentures services list
+const DetailRow = ({ text }) => (
+  <div className="flex items-center gap-2 text-slate-600 text-sm">
+    <span className="h-5 w-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs">
+      ✓
+    </span>
+    <span>{text}</span>
+  </div>
+);
+
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -64,27 +74,18 @@ const DashboardPage = () => {
   if (error) return <p className="text-center mt-8 text-red-500">{error}</p>;
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen bg-brand-soft">
+      <div className="relative z-10 min-h-screen px-6 sm:px-10 py-10">
 
-      {/* Watermark Background */}
-      <img
-        src="/background.png"
-        alt="watermark"
-        className="
-      absolute top-1/2 left-1/2 
-      w-[900px] 
-      -translate-x-1/2 -translate-y-1/2 
-      opacity-10 
-      pointer-events-none select-none 
-      -z-10
-    "/>
-
-      {/* Actual dashboard content */}
-      <div className="relative z-10 min-h-screen px-10 py-8">
-
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-[#324158]">My Tests</h1>
-          <Link to="/create-test" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+        <div className="flex flex-wrap gap-3 justify-between items-center mb-10">
+          <div>
+            <p className="text-sm uppercase tracking-wide text-slate-500">Dashboard</p>
+            <h1 className="text-4xl font-bold text-brand-primary">My Tests</h1>
+          </div>
+          <Link
+            to="/create-test"
+            className="bg-brand-gradient text-white px-6 py-2 rounded-lg shadow-brand hover:shadow-lg transition transform hover:-translate-y-0.5"
+          >
             Create New Test
           </Link>
         </div>
@@ -94,46 +95,50 @@ const DashboardPage = () => {
             You haven't created any tests yet.
           </p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {tests.map((test) => {
               const shareableLink = `${window.location.origin}/test/${test._id}`;
+              const sectionsCount = test.sections?.length || 0;
+              const totalQuestions = test.sections && test.sections.length > 0
+                ? test.sections.reduce((sum, section) => sum + section.questions.length, 0)
+                : test.questions?.length || 0;
 
               return (
-                <div key={test._id} className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition">
-
-                  <h2 className="text-2xl font-semibold mb-2">{test.title}</h2>
-                  <p className="text-gray-600 mb-4">{test.description}</p>
-
-                  <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                    <span>
-                      {test.sections && test.sections.length > 0
-                        ? `${test.sections.reduce((sum, section) => sum + section.questions.length, 0)} Questions (${test.sections.length} Sections)`
-                        : `${test.questions?.length || 0} Questions`}
-                    </span>
-                    <span>{test.duration} Minutes</span>
+                <div
+                  key={test._id}
+                  className="bg-white/90 backdrop-blur p-6 rounded-3xl border border-slate-200 shadow-card hover:shadow-brand transition duration-200 flex flex-col gap-4 hover:-translate-y-1"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="h-12 w-12 rounded-2xl bg-brand-gradient text-white flex items-center justify-center shadow-brand text-xl">
+                      {'</>'}
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-semibold text-brand-primary leading-tight">{test.title}</h2>
+                      <p className="text-slate-600 mt-1">{test.description}</p>
+                    </div>
                   </div>
 
-                  {test.allowResume && (
-                    <div className="mb-3 p-2 bg-blue-50 rounded text-xs text-blue-700">
-                      ✓ Resume enabled
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <DetailRow text={`${totalQuestions} Questions${sectionsCount ? ` (${sectionsCount} Sections)` : ''}`} />
+                    <DetailRow text={`${test.duration} Minutes`} />
+                    {test.allowResume && <DetailRow text="Resume enabled" />}
+                  </div>
 
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-auto space-y-2 border-t border-slate-100 pt-4">
                     <button
                       onClick={() => copyToClipboard(test.shareableLink
                         ? `${window.location.origin}/test/share/${test.shareableLink}`
                         : shareableLink)}
-                      className="w-full text-center bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition"
+                      className="w-full text-center bg-slate-100 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-200 transition"
                     >
                       Copy Link
                     </button>
 
-                    <Link to={`/results/${test._id}`} className="block w-full text-center bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-200 transition">
+                    <Link to={`/results/${test._id}`} className="block w-full text-center bg-brand-primary/10 text-brand-primary px-4 py-2 rounded-lg hover:bg-brand-primary/20 transition">
                       View Results
                     </Link>
 
-                    <Link to={`/edit-test/${test._id}`} className="block w-full text-center bg-yellow-100 text-yellow-700 px-4 py-2 rounded-lg hover:bg-yellow-200 transition">
+                    <Link to={`/edit-test/${test._id}`} className="block w-full text-center bg-amber-100 text-amber-700 px-4 py-2 rounded-lg hover:bg-amber-200 transition">
                       Edit
                     </Link>
 

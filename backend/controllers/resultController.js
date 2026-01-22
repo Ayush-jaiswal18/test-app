@@ -38,12 +38,40 @@ exports.submitTest = async (req, res) => {
       test.sections.forEach((section, sectionIndex) => {
         // Score MCQ questions
         section.questions.forEach((question, questionIndex) => {
-          totalMarks++;
+          totalMarks += (question.points || 1);
+          
+          // Find answer by displayed question index
           const studentAnswer = answers.find(a => 
             a.sectionIndex === sectionIndex && a.questionIndex === questionIndex
           );
-          if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
-            score++;
+          
+          if (studentAnswer) {
+            // Handle different question types
+            if (question.questionType === 'fill-blank') {
+              // For fill-in-the-blank, check if answer is in acceptableAnswers
+              const userAnswer = studentAnswer.selectedOption;
+              const acceptableAnswers = question.acceptableAnswers || [];
+              
+              let isCorrect = false;
+              if (question.caseSensitive) {
+                isCorrect = acceptableAnswers.includes(userAnswer);
+              } else {
+                isCorrect = acceptableAnswers.some(ans => 
+                  ans.toLowerCase() === userAnswer.toLowerCase()
+                );
+              }
+              
+              if (isCorrect) {
+                score += (question.points || 1);
+              }
+            } else if (question.questionType === 'true-false' || 
+                       question.questionType === 'mcq' || 
+                       question.questionType === 'image-based') {
+              // For multiple choice, true/false, and image-based questions
+              if (studentAnswer.selectedOption === question.correctAnswer) {
+                score += (question.points || 1);
+              }
+            }
           }
         });
         
@@ -67,11 +95,35 @@ exports.submitTest = async (req, res) => {
       });
     } else {
       // Calculate score for traditional test
-      totalMarks = test.questions.length;
       test.questions.forEach((question, index) => {
+        totalMarks += (question.points || 1);
         const studentAnswer = answers.find(a => a.questionIndex === index);
-        if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
-          score++;
+        
+        if (studentAnswer) {
+          // Handle different question types
+          if (question.questionType === 'fill-blank') {
+            const userAnswer = studentAnswer.selectedOption;
+            const acceptableAnswers = question.acceptableAnswers || [];
+            
+            let isCorrect = false;
+            if (question.caseSensitive) {
+              isCorrect = acceptableAnswers.includes(userAnswer);
+            } else {
+              isCorrect = acceptableAnswers.some(ans => 
+                ans.toLowerCase() === userAnswer.toLowerCase()
+              );
+            }
+            
+            if (isCorrect) {
+              score += (question.points || 1);
+            }
+          } else if (question.questionType === 'true-false' || 
+                     question.questionType === 'mcq' || 
+                     question.questionType === 'image-based') {
+            if (studentAnswer.selectedOption === question.correctAnswer) {
+              score += (question.points || 1);
+            }
+          }
         }
       });
     }

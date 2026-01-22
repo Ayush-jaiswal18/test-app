@@ -1,18 +1,40 @@
 const mongoose = require('mongoose');
 
 const questionSchema = new mongoose.Schema({
+  questionType: {
+    type: String,
+    enum: ['mcq', 'true-false', 'fill-blank', 'image-based'],
+    default: 'mcq',
+    required: true
+  },
   questionText: {
     type: String,
     required: true,
   },
+  // For image-based questions
+  imageUrl: {
+    type: String,
+    default: ''
+  },
+  // For MCQ and True/False
   options: [{
     type: String,
-    required: true,
   }],
   correctAnswer: {
-    type: Number, // Index of the correct option
-    required: true,
+    type: mongoose.Schema.Types.Mixed, // Can be Number (index) or String (for fill-blank)
   },
+  // For fill-in-the-blank - array of acceptable answers
+  acceptableAnswers: [{
+    type: String,
+  }],
+  caseSensitive: {
+    type: Boolean,
+    default: false // For fill-in-the-blank answers
+  },
+  points: {
+    type: Number,
+    default: 1
+  }
 });
 
 const codingQuestionSchema = new mongoose.Schema({
@@ -97,6 +119,10 @@ const testSchema = new mongoose.Schema({
     type: Number,
     min: 1,
     max: 20
+  },
+  showScoreToStudents: {
+    type: Boolean,
+    default: false, // Admin can decide if students see their scores
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

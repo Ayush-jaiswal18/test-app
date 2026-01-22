@@ -21,6 +21,7 @@ const CreateTestPage = () => {
   const [duration, setDuration] = useState(10);
   const [allowResume, setAllowResume] = useState(true);
   const [maxWarnings, setMaxWarnings] = useState(6);
+  const [showScoreToStudents, setShowScoreToStudents] = useState(false);
 
   const [sections, setSections] = useState([
     {
@@ -56,6 +57,7 @@ const CreateTestPage = () => {
           setDuration(testData.duration);
           setAllowResume(testData.allowResume ?? true);
           setMaxWarnings(testData.maxWarnings ?? 6);
+          setShowScoreToStudents(testData.showScoreToStudents ?? false);
           setShareableLink(testData.shareableLink || '');
 
           if (testData.sections?.length > 0) {
@@ -119,9 +121,14 @@ const CreateTestPage = () => {
   const addQuestion = (sIndex) => {
     const values = [...sections];
     values[sIndex].questions.push({
+      questionType: 'mcq',
       questionText: '',
       options: ['', '', '', ''],
-      correctAnswer: 0
+      correctAnswer: 0,
+      imageUrl: '',
+      acceptableAnswers: [],
+      caseSensitive: false,
+      points: 1
     });
     setSections(values);
   };
@@ -247,6 +254,7 @@ const CreateTestPage = () => {
       duration: Number(duration),
       allowResume,
       maxWarnings: Number(maxWarnings),
+      showScoreToStudents,
       questions: [],
       sections: sections.map(s => ({
         ...s,
@@ -261,13 +269,14 @@ const CreateTestPage = () => {
       if (isEditing) {
         await axios.put(`${API_URL}/api/tests/${testId}`, testData, config);
         alert('Test updated successfully!');
+        navigate('/dashboard');
       } else {
         const response = await axios.post(`${API_URL}/api/tests`, testData, config);
         alert('Test created successfully!');
-        navigate(`/edit-test/${response.data.data._id}`);
+        navigate('/dashboard');
         return;
       }
-      navigate('/dashboard');
+
     } catch (err) {
       if (err.response?.status === 401) {
         localStorage.removeItem('token');
@@ -279,8 +288,8 @@ const CreateTestPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 w-full pt-8 pb-8">
-      <div className="bg-white p-8 shadow-lg w-full h-full">
+    <div className="min-h-screen bg-brand-soft w-full pt-8 pb-8">
+      <div className="bg-white p-8 shadow-card rounded-2xl w-full h-full border border-slate-100">
         <h2 className="text-3xl font-bold mb-6 text-center">
           {isEditing ? 'Edit Test' : 'Create a New Test'}
         </h2>
@@ -334,6 +343,21 @@ const CreateTestPage = () => {
                   className="mr-2"
                 />
                 <span className="text-gray-700">Allow students to resume test if interrupted</span>
+              </label>
+            </div>
+
+            <div className="mb-4">
+              <label className="flex items-center p-3 border-2 border-green-200 rounded-lg bg-green-50 cursor-pointer hover:bg-green-100 transition">
+                <input
+                  type="checkbox"
+                  checked={showScoreToStudents}
+                  onChange={(e) => setShowScoreToStudents(e.target.checked)}
+                  className="mr-2 w-5 h-5"
+                />
+                <div>
+                  <span className="text-gray-700 font-semibold block">Show Score to Students</span>
+                  <span className="text-xs text-gray-600 block mt-1">If enabled, students will see their scores immediately after submission. If disabled, only you (admin) can view scores.</span>
+                </div>
               </label>
             </div>
 
@@ -408,23 +432,23 @@ const CreateTestPage = () => {
                 {/* MCQ Questions Section */}
                 <div className="mb-6">
                   <div className="flex justify-between items-center mb-3">
-                    <h5 className="text-lg font-semibold text-gray-800">Multiple Choice Questions (MCQ) <span className="text-sm font-normal text-gray-500">(Optional)</span></h5>
+                    <h5 className="text-lg font-semibold text-gray-800">Questions <span className="text-sm font-normal text-gray-500">(Optional)</span></h5>
                     <button
                       type="button"
                       onClick={() => addQuestion(sIndex)}
                       className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm"
                     >
-                      + Add MCQ
+                      + Add Question
                     </button>
                   </div>
 
                   {section.questions.length === 0 ? (
-                    <p className="text-sm text-gray-500 italic mb-3">No MCQ questions added. Click "+ Add MCQ" to add questions.</p>
+                    <p className="text-sm text-gray-500 italic mb-3">No questions added. Click "+ Add Question" to add questions.</p>
                   ) : (
                     section.questions.map((question, qIndex) => (
                       <div key={qIndex} className="mb-4 p-4 border rounded-lg bg-white">
                         <div className="flex justify-between items-center mb-2">
-                          <label className="block text-gray-700 font-semibold">MCQ Question {qIndex + 1}</label>
+                          <label className="block text-gray-700 font-semibold">Question {qIndex + 1}</label>
                           <button
                             type="button"
                             onClick={() => removeQuestion(sIndex, qIndex)}
@@ -433,6 +457,52 @@ const CreateTestPage = () => {
                             Remove
                           </button>
                         </div>
+
+                        {/* Question Type Selector */}
+                        <div className="mb-3">
+                          <label className="block text-gray-700 text-sm font-semibold mb-2">Question Type:</label>
+                          <select
+                            value={question.questionType || 'mcq'}
+                            onChange={(e) => {
+                              const newType = e.target.value;
+                              handleQuestionChange(sIndex, qIndex, 'questionType', newType);
+                              // Reset fields based on type
+                              if (newType === 'true-false') {
+                                handleQuestionChange(sIndex, qIndex, 'options', ['True', 'False']);
+                              } else if (newType === 'fill-blank') {
+                                handleQuestionChange(sIndex, qIndex, 'options', []);
+                                handleQuestionChange(sIndex, qIndex, 'acceptableAnswers', ['']);
+                              } else if (newType === 'mcq' || newType === 'image-based') {
+                                if (!question.options || question.options.length === 0) {
+                                  handleQuestionChange(sIndex, qIndex, 'options', ['', '', '', '']);
+                                }
+                              }
+                            }}
+                            className="w-full p-2 border rounded"
+                          >
+                            <option value="mcq">Multiple Choice (MCQ)</option>
+                            <option value="true-false">True/False</option>
+                            <option value="fill-blank">Fill in the Blank</option>
+                            <option value="image-based">Image-Based Question</option>
+                          </select>
+                        </div>
+
+                        {/* Image URL for image-based questions */}
+                        {question.questionType === 'image-based' && (
+                          <div className="mb-3">
+                            <label className="block text-gray-700 text-sm font-semibold mb-2">Image URL:</label>
+                            <input
+                              type="text"
+                              value={question.imageUrl || ''}
+                              onChange={(e) => handleQuestionChange(sIndex, qIndex, 'imageUrl', e.target.value)}
+                              className="w-full p-2 border rounded"
+                              placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+                            />
+                            {question.imageUrl && (
+                              <img src={question.imageUrl} alt="Preview" className="mt-2 max-w-xs border rounded" onError={(e) => { e.target.style.display = 'none'; }} />
+                            )}
+                          </div>
+                        )}
 
                         <textarea
                           value={question.questionText}
@@ -443,27 +513,100 @@ const CreateTestPage = () => {
                           placeholder="Enter question text"
                         />
 
-                        <div className="mb-3">
-                          <label className="block text-gray-700 text-sm font-semibold mb-2">Options:</label>
-                          {question.options.map((option, oIndex) => (
-                            <div key={oIndex} className="flex items-center mb-2">
-                              <input
-                                type="radio"
-                                name={`correct-${sIndex}-${qIndex}`}
-                                checked={question.correctAnswer === oIndex}
-                                onChange={() => handleQuestionChange(sIndex, qIndex, 'correctAnswer', oIndex)}
-                                className="mr-2"
-                              />
-                              <input
-                                type="text"
-                                value={option}
-                                onChange={(e) => handleOptionChange(sIndex, qIndex, oIndex, e.target.value)}
-                                required
-                                className="flex-1 p-2 border rounded"
-                                placeholder={`Option ${oIndex + 1}`}
-                              />
+                        {/* Options for MCQ, True/False, and Image-Based */}
+                        {(question.questionType === 'mcq' || question.questionType === 'true-false' || question.questionType === 'image-based') && (
+                          <div className="mb-3">
+                            <label className="block text-gray-700 text-sm font-semibold mb-2">Options:</label>
+                            {question.options && question.options.map((option, oIndex) => (
+                              <div key={oIndex} className="flex items-center mb-2">
+                                <input
+                                  type="radio"
+                                  name={`correct-${sIndex}-${qIndex}`}
+                                  checked={question.correctAnswer === oIndex}
+                                  onChange={() => handleQuestionChange(sIndex, qIndex, 'correctAnswer', oIndex)}
+                                  className="mr-2"
+                                />
+                                <input
+                                  type="text"
+                                  inputMode="text"
+                                  value={option || ''}
+                                  onChange={(e) => handleOptionChange(sIndex, qIndex, oIndex, e.target.value)}
+                                  disabled={question.questionType === 'true-false'}
+                                  className="flex-1 p-2 border rounded disabled:bg-gray-100"
+                                  placeholder={`Option ${oIndex + 1}`}
+                                  autoComplete="off"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Fill in the Blank */}
+                        {question.questionType === 'fill-blank' && (
+                          <div className="mb-3">
+                            <label className="block text-gray-700 text-sm font-semibold mb-2">Acceptable Answers:</label>
+                            <p className="text-xs text-gray-500 mb-2">Add all acceptable variations (e.g., "color", "colour")</p>
+                            {(question.acceptableAnswers || ['']).map((answer, aIndex) => (
+                              <div key={aIndex} className="flex items-center mb-2">
+                                <input
+                                  type="text"
+                                  value={answer}
+                                  onChange={(e) => {
+                                    const newAnswers = [...(question.acceptableAnswers || [''])];
+                                    newAnswers[aIndex] = e.target.value;
+                                    handleQuestionChange(sIndex, qIndex, 'acceptableAnswers', newAnswers);
+                                  }}
+                                  className="flex-1 p-2 border rounded mr-2"
+                                  placeholder={`Answer ${aIndex + 1}`}
+                                />
+                                {aIndex > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newAnswers = (question.acceptableAnswers || ['']).filter((_, idx) => idx !== aIndex);
+                                      handleQuestionChange(sIndex, qIndex, 'acceptableAnswers', newAnswers);
+                                    }}
+                                    className="bg-red-200 text-red-700 px-2 py-1 rounded hover:bg-red-300 text-xs"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newAnswers = [...(question.acceptableAnswers || ['']), ''];
+                                handleQuestionChange(sIndex, qIndex, 'acceptableAnswers', newAnswers);
+                              }}
+                              className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                            >
+                              + Add Alternative Answer
+                            </button>
+                            <div className="mt-2">
+                              <label className="flex items-center text-sm">
+                                <input
+                                  type="checkbox"
+                                  checked={question.caseSensitive || false}
+                                  onChange={(e) => handleQuestionChange(sIndex, qIndex, 'caseSensitive', e.target.checked)}
+                                  className="mr-2"
+                                />
+                                Case Sensitive
+                              </label>
                             </div>
-                          ))}
+                          </div>
+                        )}
+
+                        {/* Points */}
+                        <div className="mb-2">
+                          <label className="block text-gray-700 text-sm font-semibold mb-1">Points:</label>
+                          <input
+                            type="number"
+                            value={question.points || 1}
+                            onChange={(e) => handleQuestionChange(sIndex, qIndex, 'points', parseInt(e.target.value) || 1)}
+                            min="1"
+                            className="w-24 p-2 border rounded"
+                          />
                         </div>
                       </div>
                     ))
@@ -630,7 +773,7 @@ const CreateTestPage = () => {
           </div>
 
           <div className="flex justify-center">
-            <button type="submit" className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700">
+            <button type="submit" className="bg-brand-gradient text-white px-8 py-3 rounded-lg shadow-brand hover:shadow-lg transition transform hover:-translate-y-0.5">
               {isEditing ? 'Update Test' : 'Save Test'}
             </button>
           </div>

@@ -1,0 +1,213 @@
+
+Input Format:
+First line contains n, the number of elements in the array.
+Second line contains n space-separated integers.
+Third line contains the target sum.
+
+Output Format:
+Print two space-separated indices of the numbers that add up to target.
+
+Constraints:
+- 2 <= nums.length <= 10^4
+- -10^9 <= nums[i] <= 10^9
+- -10^9 <= target <= 10^9
+- Only one valid answer exists.
+
+Sample Input 1:
+4
+2 7 11 15
+9
+
+Sample Output 1:
+0 1
+
+Explanation:
+nums[0] + nums[1] = 2 + 7 = 9, so we return [0, 1].
+
+Language: JavaScript
+
+Starter Code:
+```javascript
+function twoSum(nums, target) {
+    // Write your code here
+}
+```
+
+-----------------------------------------------------------
+CODING QUESTION 2: Reverse a String
+-----------------------------------------------------------
+
+Description:
+Write a function that reverses a string. The input string is given as an array of characters.
+
+Input Format:
+A single line containing a string.
+
+Output Format:
+Print the reversed string.
+
+Constraints:
+- 1 <= s.length <= 10^5
+- s[i] is a printable ascii character.
+
+Sample Input 1:
+hello
+
+Sample Output 1:
+olleh
+
+Sample Input 2:
+Hannah
+
+Sample Output 2:
+hannaH
+
+Language: Python
+
+Starter Code:
+```python
+def reverse_string(s):
+    # Write your code here
+    pass
+```
+
+-----------------------------------------------------------
+Problem 3: FizzBuzz
+-----------------------------------------------------------
+
+Description:
+Write a program that prints the numbers from 1 to n. But for multiples of three print "Fizz" instead of the number and for the multiples of five print "Buzz". For numbers which are multiples of both three and five print "FizzBuzz".
+
+Input Format:
+A single integer n.
+
+Output Format:
+Print n lines, each containing either the number, "Fizz", "Buzz", or "FizzBuzz".
+
+Constraints:
+- 1 <= n <= 10^4
+
+Sample Input:
+15
+
+Sample Output:
+1
+2
+Fizz
+4
+Buzz
+Fizz
+7
+8
+Fizz
+Buzz
+11
+Fizz
+13
+14
+FizzBuzz
+
+Language: Java
+
+-----------------------------------------------------------
+[CODING] Palindrome Check
+-----------------------------------------------------------
+
+Description:
+Given a string, determine if it is a palindrome, considering only alphanumeric characters and ignoring cases.
+
+Input Format:
+A single line containing the string to check.
+
+Output Format:
+Print "true" if the string is a palindrome, "false" otherwise.
+
+Constraints:
+- 1 <= s.length <= 2 * 10^5
+- s consists only of printable ASCII characters.
+
+Sample Input 1:
+A man, a plan, a canal: Panama
+
+Sample Output 1:
+true
+
+Sample Input 2:
+race a car
+
+Sample Output 2:
+false
+
+Language: C++
+
+Starter Code:
+```cpp
+#include <iostream>
+#include <string>
+using namespace std;
+
+bool isPalindrome(string s) {
+    // Write your code here
+}
+
+int main() {
+    string s;
+    getline(cin, s);
+    cout << (isPalindrome(s) ? "true" : "false") << endl;
+    return 0;
+}
+```
+
+-----------------------------------------------------------
+Write a program to find the factorial of a number
+-----------------------------------------------------------
+
+Description:
+Given a non-negative integer n, compute the factorial of n. The factorial of n is the product of all positive integers less than or equal to n.
+
+Input Format:
+A single integer n.
+
+Output Format:
+Print the factorial of n.
+
+Constraints:
+- 0 <= n <= 20
+
+Sample Input:
+5
+
+Sample Output:
+120
+
+Explanation:
+5! = 5 × 4 × 3 × 2 × 1 = 120
+
+-----------------------------------------------------------
+Implement a function to check if a number is prime
+-----------------------------------------------------------
+
+Description:
+Given a positive integer n, determine whether it is a prime number. A prime number is a natural number greater than 1 that has no positive divisors other than 1 and itself.
+
+Input Format:
+A single integer n.
+
+Output Format:
+Print "Prime" if n is prime, otherwise print "Not Prime".
+
+Constraints:
+- 1 <= n <= 10^9
+
+Sample Input 1:
+7
+
+Sample Output 1:
+Prime
+
+Sample Input 2:
+12
+
+Sample Output 2:
+Not Prime
+

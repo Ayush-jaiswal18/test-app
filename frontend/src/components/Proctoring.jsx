@@ -4,6 +4,8 @@ import * as cam from "@mediapipe/camera_utils";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import "@tensorflow/tfjs";
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
 const Proctoring = ({ onMaxWarnings, maxWarnings = 6 }) => {
   const objectDetectorRef = useRef(null);
   const detectionIntervalRef = useRef(null);
@@ -152,7 +154,7 @@ const Proctoring = ({ onMaxWarnings, maxWarnings = 6 }) => {
 
     setTimeout(() => setWarningVisible(false), 3000);
 
-    await fetch("http://localhost:5000/api/report", {
+    await fetch(`${API_URL}/api/report`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ event: type, time: new Date() }),

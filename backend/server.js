@@ -13,9 +13,26 @@ connectDB();
 // Initialize the Express app
 const app = express();
 
-// Middlewares
-app.use(cors()); // Enable Cross-Origin Resource Sharing
+// CORS configuration
+const corsOptions = {
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+// Middlewares - CORS must come before routes
+app.use(cors(corsOptions));
 app.use(express.json()); // To parse JSON request bodies
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
 
 
 // API Routes
@@ -43,3 +60,14 @@ const PORT = process.env.PORT || 5000;
 
 // Start the server
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+
+// Global error handler
+process.on('unhandledRejection', (err) => {
+  console.log('Unhandled Rejection! Shutting down...');
+  console.log(err.name, err.message);
+});
+
+process.on('uncaughtException', (err) => {
+  console.log('Uncaught Exception! Shutting down...');
+  console.log(err.name, err.message);
+});

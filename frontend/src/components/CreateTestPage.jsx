@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -35,6 +35,112 @@ const CreateTestPage = () => {
 
   const [shareableLink, setShareableLink] = useState('');
   const [error, setError] = useState('');
+
+  // File upload states for question extraction
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedQuestions, setExtractedQuestions] = useState([]);
+  const [showExtractedModal, setShowExtractedModal] = useState(false);
+  const [selectedExtractedQuestions, setSelectedExtractedQuestions] = useState([]);
+  const [targetSectionIndex, setTargetSectionIndex] = useState(0);
+  const fileInputRef = useRef(null);
+
+  // Handle file upload for question extraction
+  const handleFileUpload = async (e, sectionIndex) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|docx|doc)$/i)) {
+      setError('Please upload a PDF or DOCX file');
+      return;
+    }
+
+    setIsExtracting(true);
+    setError('');
+    setTargetSectionIndex(sectionIndex);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await axios.post(`${API_URL}/api/tests/extract-questions`, formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data.success && response.data.data.questions.length > 0) {
+        setExtractedQuestions(response.data.data.questions);
+        setSelectedExtractedQuestions(response.data.data.questions.map((_, i) => i)); // Select all by default
+        setShowExtractedModal(true);
+      } else {
+        setError('No questions found in the uploaded file. Please check the file format.');
+      }
+    } catch (err) {
+      console.error('Error extracting questions:', err);
+      setError(err.response?.data?.message || 'Failed to extract questions from file');
+    } finally {
+      setIsExtracting(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Toggle selection of extracted question
+  const toggleExtractedQuestionSelection = (index) => {
+    setSelectedExtractedQuestions(prev => {
+      if (prev.includes(index)) {
+        return prev.filter(i => i !== index);
+      } else {
+        return [...prev, index];
+      }
+    });
+  };
+
+  // Add selected extracted questions to section
+  const addExtractedQuestionsToSection = () => {
+    const values = [...sections];
+    
+    selectedExtractedQuestions.forEach(index => {
+      const eq = extractedQuestions[index];
+      
+      if (eq.type === 'mcq' && eq.options && eq.options.length > 0) {
+        // Add as MCQ
+        values[targetSectionIndex].questions.push({
+          questionType: 'mcq',
+          questionText: eq.questionText,
+          options: eq.options.map(opt => opt.text || opt),
+          correctAnswer: eq.correctAnswer !== undefined ? eq.correctAnswer : 0, // Use extracted correct answer
+          imageUrl: '',
+          acceptableAnswers: [],
+          caseSensitive: false,
+          points: 1
+        });
+      } else {
+        // Add as fill-in-the-blank or subjective
+        values[targetSectionIndex].questions.push({
+          questionType: 'fill-blank',
+          questionText: eq.questionText,
+          options: [],
+          correctAnswer: 0,
+          imageUrl: '',
+          acceptableAnswers: [''],
+          caseSensitive: false,
+          points: 1
+        });
+      }
+    });
+    
+    setSections(values);
+    setShowExtractedModal(false);
+    setExtractedQuestions([]);
+    setSelectedExtractedQuestions([]);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -433,13 +539,29 @@ const CreateTestPage = () => {
                 <div className="mb-6">
                   <div className="flex justify-between items-center mb-3">
                     <h5 className="text-lg font-semibold text-gray-800">Questions <span className="text-sm font-normal text-gray-500">(Optional)</span></h5>
-                    <button
-                      type="button"
-                      onClick={() => addQuestion(sIndex)}
-                      className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm"
-                    >
-                      + Add Question
-                    </button>
+                    <div className="flex gap-2">
+                      <label className="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 text-sm cursor-pointer flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        {isExtracting ? 'Extracting...' : 'Extract from File'}
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          accept=".pdf,.docx,.doc"
+                          onChange={(e) => handleFileUpload(e, sIndex)}
+                          className="hidden"
+                          disabled={isExtracting}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => addQuestion(sIndex)}
+                        className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm"
+                      >
+                        + Add Question
+                      </button>
+                    </div>
                   </div>
 
                   {section.questions.length === 0 ? (
@@ -779,6 +901,119 @@ const CreateTestPage = () => {
           </div>
         </form>
       </div>
+
+      {/* Extracted Questions Modal */}
+      {showExtractedModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold text-gray-800">
+                  Extracted Questions ({extractedQuestions.length} found)
+                </h3>
+                <button
+                  onClick={() => setShowExtractedModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                Select the questions you want to add to Section {targetSectionIndex + 1}
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-3">
+                {extractedQuestions.map((eq, index) => (
+                  <div
+                    key={index}
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition ${
+                      selectedExtractedQuestions.includes(index)
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => toggleExtractedQuestionSelection(index)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedExtractedQuestions.includes(index)}
+                        onChange={() => toggleExtractedQuestionSelection(index)}
+                        className="mt-1 w-5 h-5"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-gray-500">Q{eq.questionNumber || index + 1}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            eq.type === 'mcq' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {eq.type === 'mcq' ? 'MCQ' : 'Fill in Blank'}
+                          </span>
+                          {eq.type === 'mcq' && eq.correctAnswer !== undefined && eq.correctAnswer >= 0 && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                              Answer: {String.fromCharCode(65 + eq.correctAnswer)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-gray-800">{eq.questionText}</p>
+                        {eq.options && eq.options.length > 0 && (
+                          <div className="mt-2 pl-4 space-y-1">
+                            {eq.options.map((opt, optIndex) => (
+                              <div 
+                                key={optIndex} 
+                                className={`text-sm flex items-center gap-1 ${
+                                  eq.correctAnswer === optIndex 
+                                    ? 'text-green-700 font-medium' 
+                                    : 'text-gray-600'
+                                }`}
+                              >
+                                {eq.correctAnswer === optIndex && (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                                <span className="font-medium">{opt.label || String.fromCharCode(65 + optIndex)})</span> {opt.text || opt}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-6 border-t bg-gray-50 flex justify-between items-center">
+              <div className="text-sm text-gray-600">
+                {selectedExtractedQuestions.length} of {extractedQuestions.length} questions selected
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowExtractedModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addExtractedQuestionsToSection}
+                  disabled={selectedExtractedQuestions.length === 0}
+                  className={`px-4 py-2 rounded-lg text-white transition ${
+                    selectedExtractedQuestions.length > 0
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Add Selected Questions
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

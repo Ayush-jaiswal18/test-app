@@ -1,0 +1,258 @@
+{
+	"info": {
+		"_postman_id": "extract-questions-api-collection",
+		"name": "Test Portal - Extract Questions API",
+		"description": "API collection for testing the PDF/DOCX question extraction feature",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5002",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "1. Register Admin",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Admin\",\n    \"email\": \"admin@test.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Login Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set('token', jsonData.token);",
+									"    console.log('Token saved successfully!');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@test.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Extract Questions",
+			"item": [
+				{
+					"name": "3. Extract Questions from PDF",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "",
+									"description": "Select your PDF file here"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/tests/extract-questions",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tests", "extract-questions"]
+						},
+						"description": "Upload a PDF or DOCX file to extract questions.\n\n**How to use:**\n1. First run 'Login Admin' to get the token\n2. In the Body tab, click 'Select Files' next to 'file'\n3. Choose your PDF or DOCX file\n4. Send the request\n\n**Expected Response:**\n```json\n{\n    \"success\": true,\n    \"message\": \"Successfully extracted X questions\",\n    \"data\": {\n        \"questions\": [...],\n        \"totalFound\": X,\n        \"fileName\": \"your-file.pdf\"\n    }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "4. Extract Questions from DOCX",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "",
+									"description": "Select your DOCX file here"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/tests/extract-questions",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tests", "extract-questions"]
+						},
+						"description": "Upload a DOCX file to extract questions."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Test Management",
+			"item": [
+				{
+					"name": "5. Create Test with Extracted Questions",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Sample Test from Extracted Questions\",\n    \"description\": \"This test was created using extracted questions from PDF\",\n    \"duration\": 60,\n    \"sections\": [\n        {\n            \"sectionTitle\": \"Section 1 - MCQ Questions\",\n            \"sectionDescription\": \"Multiple choice questions extracted from PDF\",\n            \"questions\": [\n                {\n                    \"questionType\": \"mcq\",\n                    \"questionText\": \"What is JavaScript primarily used for?\",\n                    \"options\": [\n                        \"Database management\",\n                        \"Web development and creating interactive websites\",\n                        \"Operating system development\",\n                        \"Hardware programming\"\n                    ],\n                    \"correctAnswer\": 1,\n                    \"points\": 1\n                },\n                {\n                    \"questionType\": \"mcq\",\n                    \"questionText\": \"Which of the following is NOT a primitive data type in JavaScript?\",\n                    \"options\": [\n                        \"String\",\n                        \"Number\",\n                        \"Array\",\n                        \"Boolean\"\n                    ],\n                    \"correctAnswer\": 2,\n                    \"points\": 1\n                }\n            ],\n            \"codingQuestions\": []\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/tests",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tests"]
+						},
+						"description": "Create a new test with extracted questions"
+					},
+					"response": []
+				},
+				{
+					"name": "6. Get All Tests",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/tests",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tests"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Error Cases",
+			"item": [
+				{
+					"name": "Extract - No File",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/tests/extract-questions",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tests", "extract-questions"]
+						},
+						"description": "Test error handling when no file is uploaded.\n\n**Expected Response (400):**\n```json\n{\n    \"success\": false,\n    \"message\": \"No file uploaded. Please upload a PDF or DOCX file.\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Extract - No Auth Token",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": ""
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/tests/extract-questions",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tests", "extract-questions"]
+						},
+						"description": "Test authentication requirement.\n\n**Expected Response (401):**\n```json\n{\n    \"message\": \"Not authorized, no token\"\n}\n```"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

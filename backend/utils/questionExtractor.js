@@ -183,22 +183,345 @@ async function extractQuestions(buffer, fileType) {
         text = await extractTextFromPDF(buffer);
     } else if (normalizedType === 'docx' || normalizedType === 'doc') {
         text = await extractTextFromDOCX(buffer);
+    } else if (normalizedType === 'txt' || normalizedType === 'text') {
+        // Plain text files - just convert buffer to string
+        text = buffer.toString('utf-8');
     } else {
         throw new Error(`Unsupported file type: ${fileType}`);
     }
     
     const questions = parseQuestions(text);
+    const codingQuestions = parseCodingQuestions(text);
     
     return {
         rawText: text,
         questions: questions,
-        totalFound: questions.length
+        codingQuestions: codingQuestions,
+        totalFound: questions.length,
+        totalCodingFound: codingQuestions.length
     };
+}
+
+/**
+ * Parse coding questions from extracted text
+ * Detects patterns like:
+ * - CODING: Title
+ * - Coding Question 1: Title
+ * - Problem 1: Title
+ * - [CODING] Title
+ * 
+ * With sections for:
+ * - Description
+ * - Input/Output format
+ * - Constraints
+ * - Test Cases / Examples
+ * - Sample Input/Output
+ * 
+ * @param {string} text - Raw text from document
+ * @returns {Array} - Array of coding question objects
+ */
+function parseCodingQuestions(text) {
+    const codingQuestions = [];
+    
+    // Split text into lines
+    const lines = text.split('\n').map(line => line.trim());
+    
+    // Strong patterns that always indicate a coding question header
+    const strongHeaderPatterns = [
+        /^(?:CODING|Coding)\s*(?:Question|Problem|Q)?\s*[:\-]?\s*(\d+)?[.\):]?\s*(.+)?/i,
+        /^\[CODING\]\s*(.+)?/i,
+        /^(?:Problem|Prob)\s*(\d+)[.\):]\s*(.+)?/i,
+        /^(?:Programming|Code)\s*(?:Question|Problem|Exercise)\s*(\d+)?[.\):]\s*(.+)?/i
+    ];
+    
+    // Weak patterns - only use when NOT in an existing coding question context
+    const weakHeaderPatterns = [
+        /^(?:Write\s+a\s+(?:program|function|code))\s+(?:to|that|which)\s+(.+)/i,
+        /^(?:Implement|Create|Develop|Design)\s+(?:a\s+)?(?:program|function|method|algorithm)\s+(?:to|that|which|for)\s+(.+)/i
+    ];
+    
+    // Section headers within a coding question - more specific patterns
+    const sectionPatterns = {
+        description: /^(?:Description|Problem\s*Statement|Task|Overview)\s*:?\s*/i,
+        input: /^(?:Input\s*Format|Input\s*Description|Input)\s*:?\s*/i,
+        output: /^(?:Output\s*Format|Output\s*Description|Expected\s*Output|Output)\s*:?\s*/i,
+        constraints: /^(?:Constraints?|Limitations?|Bounds?)\s*:?\s*/i,
+        sampleInput: /^(?:Sample\s*Input|Input\s*Example|Example\s*Input|Test\s*Case\s*Input)\s*:?\s*(\d+)?\s*:?\s*/i,
+        sampleOutput: /^(?:Sample\s*Output|Output\s*Example|Example\s*Output|Expected\s*Output\s*Example)\s*:?\s*(\d+)?\s*:?\s*/i,
+        example: /^(?:Example|Sample|Test\s*Case)\s*:?\s*(\d+)?\s*:?\s*/i,
+        explanation: /^(?:Explanation|Note|Hint)\s*:?\s*/i,
+        starterCode: /^(?:Starter\s*Code|Template|Boilerplate|Initial\s*Code)\s*:?\s*/i,
+        language: /^(?:Language|Programming\s*Language)\s*:?\s*/i
+    };
+    
+    let currentCodingQuestion = null;
+    let currentSection = 'description';
+    let questionNumber = 0;
+    let inCodeBlock = false;
+    let codeBlockContent = [];
+    let currentTestCase = null;
+    
+    const saveCodingQuestion = () => {
+        if (currentCodingQuestion) {
+            // Clean up the question
+            currentCodingQuestion.description = currentCodingQuestion.description.trim();
+            if (currentCodingQuestion.inputFormat) {
+                currentCodingQuestion.inputFormat = currentCodingQuestion.inputFormat.trim();
+            }
+            if (currentCodingQuestion.outputFormat) {
+                currentCodingQuestion.outputFormat = currentCodingQuestion.outputFormat.trim();
+            }
+            if (currentCodingQuestion.constraints) {
+                currentCodingQuestion.constraints = currentCodingQuestion.constraints.trim();
+            }
+            
+            // Only add if it has meaningful content
+            if (currentCodingQuestion.title || currentCodingQuestion.description.length > 20) {
+                codingQuestions.push(currentCodingQuestion);
+            }
+        }
+    };
+    
+    const saveCurrentTestCase = () => {
+        if (currentTestCase && currentCodingQuestion) {
+            if (currentTestCase.input || currentTestCase.expectedOutput) {
+                if (!currentCodingQuestion.testCases) {
+                    currentCodingQuestion.testCases = [];
+                }
+                currentCodingQuestion.testCases.push({
+                    input: (currentTestCase.input || '').trim(),
+                    expectedOutput: (currentTestCase.expectedOutput || '').trim(),
+                    weight: 1
+                });
+            }
+        }
+        currentTestCase = null;
+    };
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const originalLine = line;
+        
+        // Check for code block markers
+        if (line.startsWith('```') || line.startsWith('~~~')) {
+            if (inCodeBlock) {
+                // End of code block
+                inCodeBlock = false;
+                if (currentCodingQuestion && currentSection === 'starterCode') {
+                    currentCodingQuestion.starterCode = codeBlockContent.join('\n');
+                }
+                codeBlockContent = [];
+            } else {
+                // Start of code block
+                inCodeBlock = true;
+                // Check if language is specified
+                const langMatch = line.match(/^```(\w+)/);
+                if (langMatch && currentCodingQuestion) {
+                    currentCodingQuestion.language = detectLanguage(langMatch[1]);
+                }
+            }
+            continue;
+        }
+        
+        // If inside code block, collect content
+        if (inCodeBlock) {
+            codeBlockContent.push(originalLine);
+            continue;
+        }
+        
+        // Check for coding question header
+        let isCodingHeader = false;
+        
+        // First check strong patterns (always create new question)
+        for (const pattern of strongHeaderPatterns) {
+            const match = line.match(pattern);
+            if (match) {
+                // Save previous coding question
+                saveCurrentTestCase();
+                saveCodingQuestion();
+                
+                questionNumber++;
+                currentCodingQuestion = {
+                    questionNumber: match[1] ? parseInt(match[1]) : questionNumber,
+                    title: (match[2] || match[1] || '').trim(),
+                    description: '',
+                    inputFormat: '',
+                    outputFormat: '',
+                    constraints: '',
+                    starterCode: '// Write your code here',
+                    language: 'javascript',
+                    allowedLanguages: ['javascript', 'python', 'java', 'cpp'],
+                    testCases: [],
+                    type: 'coding'
+                };
+                currentSection = 'description';
+                isCodingHeader = true;
+                break;
+            }
+        }
+        
+        // Then check weak patterns ONLY if not already in a coding question
+        if (!isCodingHeader && !currentCodingQuestion) {
+            for (const pattern of weakHeaderPatterns) {
+                const match = line.match(pattern);
+                if (match) {
+                    questionNumber++;
+                    currentCodingQuestion = {
+                        questionNumber: questionNumber,
+                        title: (match[1] || '').trim(),
+                        description: '',
+                        inputFormat: '',
+                        outputFormat: '',
+                        constraints: '',
+                        starterCode: '// Write your code here',
+                        language: 'javascript',
+                        allowedLanguages: ['javascript', 'python', 'java', 'cpp'],
+                        testCases: [],
+                        type: 'coding'
+                    };
+                    currentSection = 'description';
+                    isCodingHeader = true;
+                    break;
+                }
+            }
+        }
+        
+        if (isCodingHeader) continue;
+        
+        // If we're not in a coding question context, skip
+        if (!currentCodingQuestion) continue;
+        
+        // Check for section headers
+        let sectionFound = false;
+        for (const [section, pattern] of Object.entries(sectionPatterns)) {
+            if (pattern.test(line)) {
+                sectionFound = true;
+                
+                // Handle sample input/output as test cases
+                if (section === 'sampleInput' || section === 'example') {
+                    // Save previous test case only when starting a NEW sample input
+                    saveCurrentTestCase();
+                    currentTestCase = { input: '', expectedOutput: '' };
+                    currentSection = 'sampleInput';
+                } else if (section === 'sampleOutput') {
+                    // DON'T save the test case here - we're adding output to current test case
+                    if (!currentTestCase) {
+                        currentTestCase = { input: '', expectedOutput: '' };
+                    }
+                    currentSection = 'sampleOutput';
+                } else {
+                    // For other sections, save the current test case first
+                    saveCurrentTestCase();
+                    currentSection = section;
+                }
+                
+                // Check if content is on the same line
+                const contentAfterHeader = line.replace(pattern, '').trim();
+                if (contentAfterHeader) {
+                    appendToSection(currentCodingQuestion, currentSection, contentAfterHeader, currentTestCase);
+                }
+                break;
+            }
+        }
+        
+        if (sectionFound) continue;
+        
+        // Append line to current section
+        if (line.length > 0) {
+            appendToSection(currentCodingQuestion, currentSection, line, currentTestCase);
+        }
+    }
+    
+    // Save the last test case and question
+    saveCurrentTestCase();
+    saveCodingQuestion();
+    
+    return codingQuestions;
+}
+
+/**
+ * Append content to the appropriate section of a coding question
+ */
+function appendToSection(question, section, content, testCase) {
+    switch (section) {
+        case 'description':
+            question.description += (question.description ? '\n' : '') + content;
+            break;
+        case 'input':
+            question.inputFormat += (question.inputFormat ? '\n' : '') + content;
+            break;
+        case 'output':
+            question.outputFormat += (question.outputFormat ? '\n' : '') + content;
+            break;
+        case 'constraints':
+            question.constraints += (question.constraints ? '\n' : '') + content;
+            break;
+        case 'starterCode':
+            question.starterCode += '\n' + content;
+            break;
+        case 'sampleInput':
+            if (testCase) {
+                testCase.input += (testCase.input ? '\n' : '') + content;
+            }
+            break;
+        case 'sampleOutput':
+            if (testCase) {
+                testCase.expectedOutput += (testCase.expectedOutput ? '\n' : '') + content;
+            }
+            break;
+        case 'language':
+            question.language = detectLanguage(content);
+            break;
+        case 'explanation':
+            // Add to description as a note
+            question.description += '\n\nNote: ' + content;
+            break;
+        default:
+            // Default to description
+            question.description += (question.description ? '\n' : '') + content;
+    }
+}
+
+/**
+ * Detect programming language from string
+ */
+function detectLanguage(langStr) {
+    const lang = langStr.toLowerCase().trim();
+    const languageMap = {
+        'javascript': 'javascript',
+        'js': 'javascript',
+        'node': 'javascript',
+        'nodejs': 'javascript',
+        'python': 'python',
+        'python3': 'python',
+        'py': 'python',
+        'java': 'java',
+        'c++': 'cpp',
+        'cpp': 'cpp',
+        'c': 'c',
+        'csharp': 'csharp',
+        'c#': 'csharp',
+        'ruby': 'ruby',
+        'rb': 'ruby',
+        'go': 'go',
+        'golang': 'go',
+        'rust': 'rust',
+        'rs': 'rust',
+        'typescript': 'typescript',
+        'ts': 'typescript',
+        'php': 'php',
+        'swift': 'swift',
+        'kotlin': 'kotlin',
+        'kt': 'kotlin'
+    };
+    return languageMap[lang] || 'javascript';
 }
 
 module.exports = { 
     extractQuestions,
     extractTextFromPDF,
     extractTextFromDOCX,
-    parseQuestions
+    parseQuestions,
+    parseCodingQuestions,
+    detectLanguage
 };

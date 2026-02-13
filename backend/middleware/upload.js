@@ -4,15 +4,15 @@ const path = require('path');
 // Use memory storage to keep files in buffer
 const storage = multer.memoryStorage();
 
-// File filter to only accept PDF and DOCX files
+// File filter to only accept PDF, DOCX, and TXT files
 const fileFilter = (req, file, cb) => {
-    const allowedTypes = ['.pdf', '.docx', '.doc'];
+    const allowedTypes = ['.pdf', '.docx', '.doc', '.txt'];
     const ext = path.extname(file.originalname).toLowerCase();
     
     if (allowedTypes.includes(ext)) {
         cb(null, true);
     } else {
-        cb(new Error('Only PDF and DOCX files are allowed'), false);
+        cb(new Error('Only PDF, DOCX, and TXT files are allowed'), false);
     }
 };
 

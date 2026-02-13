@@ -32,12 +32,17 @@ router.post('/extract-questions', protect, upload.single('file'), async (req, re
     
     const result = await extractQuestions(req.file.buffer, fileExt);
     
+    const totalQuestions = result.totalFound + (result.totalCodingFound || 0);
+    
     res.json({
       success: true,
-      message: `Successfully extracted ${result.totalFound} questions`,
+      message: `Successfully extracted ${result.totalFound} MCQ questions and ${result.totalCodingFound || 0} coding questions`,
       data: {
         questions: result.questions,
+        codingQuestions: result.codingQuestions || [],
         totalFound: result.totalFound,
+        totalCodingFound: result.totalCodingFound || 0,
+        totalQuestions: totalQuestions,
         fileName: req.file.originalname,
         rawText: result.rawText // Include raw text for manual parsing if needed
       }

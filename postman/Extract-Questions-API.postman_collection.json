@@ -112,7 +112,7 @@
 							"host": ["{{baseUrl}}"],
 							"path": ["api", "tests", "extract-questions"]
 						},
-						"description": "Upload a PDF or DOCX file to extract questions.\n\n**How to use:**\n1. First run 'Login Admin' to get the token\n2. In the Body tab, click 'Select Files' next to 'file'\n3. Choose your PDF or DOCX file\n4. Send the request\n\n**Expected Response:**\n```json\n{\n    \"success\": true,\n    \"message\": \"Successfully extracted X questions\",\n    \"data\": {\n        \"questions\": [...],\n        \"totalFound\": X,\n        \"fileName\": \"your-file.pdf\"\n    }\n}\n```"
+						"description": "Upload a PDF or DOCX file to extract questions.\n\n**How to use:**\n1. First run 'Login Admin' to get the token\n2. In the Body tab, click 'Select Files' next to 'file'\n3. Choose your PDF or DOCX file\n4. Send the request\n\n**Expected Response:**\n```json\n{\n    \"success\": true,\n    \"message\": \"Successfully extracted X MCQ questions and Y coding questions\",\n    \"data\": {\n        \"questions\": [...],\n        \"codingQuestions\": [...],\n        \"totalFound\": X,\n        \"totalCodingFound\": Y,\n        \"totalQuestions\": X+Y,\n        \"fileName\": \"your-file.pdf\"\n    }\n}\n```\n\n**Coding Question Format:**\n- CODING: Title\n- [CODING] Title\n- Problem 1: Title\n- Write a program to...\n- Implement a function to...\n\n**Supported Sections:**\n- Description\n- Input Format\n- Output Format\n- Constraints\n- Sample Input/Output\n- Test Cases\n- Starter Code"
 					},
 					"response": []
 				},

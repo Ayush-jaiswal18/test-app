@@ -655,6 +655,10 @@ const CreateTestPage = () => {
                               } else if (newType === 'fill-blank') {
                                 handleQuestionChange(sIndex, qIndex, 'options', []);
                                 handleQuestionChange(sIndex, qIndex, 'acceptableAnswers', ['']);
+                              } else if (newType === 'descriptive') {
+                                handleQuestionChange(sIndex, qIndex, 'options', []);
+                                handleQuestionChange(sIndex, qIndex, 'modelAnswer', '');
+                                handleQuestionChange(sIndex, qIndex, 'wordLimit', 0);
                               } else if (newType === 'mcq' || newType === 'image-based') {
                                 if (!question.options || question.options.length === 0) {
                                   handleQuestionChange(sIndex, qIndex, 'options', ['', '', '', '']);
@@ -667,6 +671,7 @@ const CreateTestPage = () => {
                             <option value="true-false">True/False</option>
                             <option value="fill-blank">Fill in the Blank</option>
                             <option value="image-based">Image-Based Question</option>
+                            <option value="descriptive">Descriptive / Essay</option>
                           </select>
                         </div>
 
@@ -777,6 +782,33 @@ const CreateTestPage = () => {
                                 Case Sensitive
                               </label>
                             </div>
+                          </div>
+                        )}
+
+                        {/* Descriptive / Essay */}
+                        {question.questionType === 'descriptive' && (
+                          <div className="mb-3">
+                            <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                              <p className="text-xs text-amber-700">📝 Descriptive questions require manual evaluation by admin. Students will write free-form text answers.</p>
+                            </div>
+                            <label className="block text-gray-700 text-sm font-semibold mb-2">Model Answer (for admin reference):</label>
+                            <textarea
+                              value={question.modelAnswer || ''}
+                              onChange={(e) => handleQuestionChange(sIndex, qIndex, 'modelAnswer', e.target.value)}
+                              className="w-full p-2 border rounded mb-3"
+                              rows={4}
+                              placeholder="Enter a model/reference answer (only visible to admin during evaluation)"
+                            />
+                            <label className="block text-gray-700 text-sm font-semibold mb-2">Word Limit:</label>
+                            <input
+                              type="number"
+                              value={question.wordLimit || 0}
+                              onChange={(e) => handleQuestionChange(sIndex, qIndex, 'wordLimit', parseInt(e.target.value) || 0)}
+                              min="0"
+                              className="w-32 p-2 border rounded"
+                              placeholder="0 = no limit"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Set to 0 for no word limit</p>
                           </div>
                         )}
 

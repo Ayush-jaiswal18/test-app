@@ -1,5 +1,5 @@
 const express = require('express');
-const { submitTest, getResultsByTestId, checkSubmissionStatus, getResultById, evaluateCodingQuestion } = require('../controllers/resultController');
+const { submitTest, getResultsByTestId, checkSubmissionStatus, getResultById, evaluateCodingQuestion, evaluateDescriptiveQuestion } = require('../controllers/resultController');
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -18,6 +18,9 @@ router.get('/:testId/:resultId', protect, getResultById);
 
 // Protected route for admins to evaluate coding questions
 router.post('/:resultId/evaluate-coding', protect, evaluateCodingQuestion);
+
+// Protected route for admins to evaluate descriptive questions
+router.post('/:resultId/evaluate-descriptive', protect, evaluateDescriptiveQuestion);
 
 
 module.exports = router;

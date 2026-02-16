@@ -107,6 +107,40 @@ const ResultsPage = () => {
     }
   };
 
+  const handleEvaluateDescriptive = async (resultId, sectionIndex, questionIndex, score, feedback) => {
+    try {
+      setEvaluating({ [resultId]: true });
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      await axios.post(
+        `${API_URL}/api/results/${resultId}/evaluate-descriptive`,
+        { sectionIndex, questionIndex, score, feedback },
+        config
+      );
+
+      // Refresh results
+      const resultsRes = await axios.get(`${API_URL}/api/results/${testId}`, config);
+      setResults(resultsRes.data.data);
+
+      // Refresh selected result if viewing it
+      if (selectedResult && selectedResult._id === resultId) {
+        await fetchResultDetails(resultId);
+      }
+
+      alert('Descriptive question evaluated successfully!');
+    } catch (err) {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        navigate('/admin/login');
+      } else {
+        alert('Failed to evaluate descriptive question: ' + (err.response?.data?.message || err.message));
+      }
+    } finally {
+      setEvaluating({ [resultId]: false });
+    }
+  };
+
   if (loading) return <p className="text-center mt-8">Loading results...</p>;
   if (error) return <p className="text-center mt-8 text-red-500">{error}</p>;
 
@@ -305,6 +339,91 @@ const ResultsPage = () => {
                         a.sectionIndex === sIdx && a.questionIndex === qIdx
                       );
                       const isCorrect = answer && answer.selectedOption === question.correctAnswer;
+
+                      // Descriptive question rendering
+                      if (question.questionType === 'descriptive') {
+                        const descriptiveAnswer = selectedResult.descriptiveAnswers?.find(a =>
+                          a.sectionIndex === sIdx && a.questionIndex === qIdx
+                        );
+
+                        return (
+                          <div key={qIdx} className="mb-4 p-3 border-2 border-amber-200 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                              <p className="font-semibold">Q{qIdx + 1}: {question.questionText}</p>
+                              <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700">Descriptive</span>
+                            </div>
+                            
+                            {descriptiveAnswer && descriptiveAnswer.answerText ? (
+                              <>
+                                <div className="mb-3">
+                                  <label className="block text-sm font-semibold text-gray-600 mb-1">Student's Answer:</label>
+                                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 whitespace-pre-wrap text-gray-700">
+                                    {descriptiveAnswer.answerText}
+                                  </div>
+                                  {question.wordLimit > 0 && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Word count: {descriptiveAnswer.answerText.trim().split(/\s+/).filter(w => w.length > 0).length} / {question.wordLimit}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Model Answer (for admin reference) */}
+                                {question.modelAnswer && (
+                                  <div className="mb-3">
+                                    <label className="block text-sm font-semibold text-gray-600 mb-1">📋 Model Answer (Reference):</label>
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 whitespace-pre-wrap text-gray-700 text-sm">
+                                      {question.modelAnswer}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Evaluation Section */}
+                                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                  <label className="block text-sm font-semibold mb-2">
+                                    Score: {descriptiveAnswer.score !== undefined && descriptiveAnswer.score !== null ? descriptiveAnswer.score : 'Not evaluated'} / {question.points || 1}
+                                  </label>
+                                  <div className="flex gap-2 mb-2">
+                                    <input
+                                      type="number"
+                                      id={`desc-score-${sIdx}-${qIdx}`}
+                                      min="0"
+                                      max={question.points || 1}
+                                      defaultValue={descriptiveAnswer.score || 0}
+                                      className="w-24 p-2 border rounded"
+                                      placeholder="Score"
+                                    />
+                                    <textarea
+                                      id={`desc-feedback-${sIdx}-${qIdx}`}
+                                      defaultValue={descriptiveAnswer.feedback || ''}
+                                      className="flex-1 p-2 border rounded"
+                                      rows={2}
+                                      placeholder="Feedback (optional)"
+                                    />
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      const score = parseInt(document.getElementById(`desc-score-${sIdx}-${qIdx}`).value) || 0;
+                                      const feedback = document.getElementById(`desc-feedback-${sIdx}-${qIdx}`).value;
+                                      handleEvaluateDescriptive(selectedResult._id, sIdx, qIdx, score, feedback);
+                                    }}
+                                    disabled={evaluating[selectedResult._id]}
+                                    className="bg-amber-600 text-white px-4 py-2 rounded hover:bg-amber-700 disabled:bg-gray-400"
+                                  >
+                                    {evaluating[selectedResult._id] ? 'Evaluating...' : 'Save Evaluation'}
+                                  </button>
+                                  {descriptiveAnswer.feedback && (
+                                    <p className="mt-2 text-sm text-gray-600">
+                                      <strong>Previous Feedback:</strong> {descriptiveAnswer.feedback}
+                                    </p>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <p className="text-gray-500 italic">No answer submitted for this question.</p>
+                            )}
+                          </div>
+                        );
+                      }
 
                       return (
                         <div key={qIdx} className="mb-4 p-3 border rounded">

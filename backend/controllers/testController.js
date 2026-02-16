@@ -146,7 +146,10 @@ exports.getTestById = async (req, res) => {
     }
     // Optionally, you might want to remove correct answers before sending to student
     const testForStudent = { ...test.toObject() };
-    testForStudent.questions.forEach(q => delete q.correctAnswer);
+    testForStudent.questions.forEach(q => {
+      delete q.correctAnswer;
+      delete q.modelAnswer;
+    });
 
     res.status(200).json({ success: true, data: testForStudent });
   } catch (error) {
@@ -273,6 +276,7 @@ exports.getTestByShareLink = async (req, res) => {
           delete q.correctAnswer;
           delete q.acceptableAnswers;
           delete q.caseSensitive;
+          delete q.modelAnswer;
         });
         
         return {
@@ -290,6 +294,7 @@ exports.getTestByShareLink = async (req, res) => {
         delete q.correctAnswer;
         delete q.acceptableAnswers;
         delete q.caseSensitive;
+        delete q.modelAnswer;
       });
       
       testForStudent.questions = shuffledQuestions;

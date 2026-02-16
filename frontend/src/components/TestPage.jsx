@@ -14,6 +14,7 @@ const TestPage = () => {
   const [rollNumber, setRollNumber] = useState('');
   const [answers, setAnswers] = useState([]);
   const [codingAnswers, setCodingAnswers] = useState([]); // 🆕 Store coding question answers
+  const [descriptiveAnswers, setDescriptiveAnswers] = useState([]); // 🆕 Store descriptive question answers
   const [questionMode, setQuestionMode] = useState('mcq'); // 'mcq' or 'coding'
   const [currentCodingQuestion, setCurrentCodingQuestion] = useState(0);
   
@@ -69,6 +70,7 @@ const TestPage = () => {
         currentQuestion,
         answers,
         codingAnswers, // 🆕 Include coding answers
+        descriptiveAnswers, // 🆕 Include descriptive answers
         timeSpent
       };
       
@@ -465,6 +467,7 @@ const TestPage = () => {
           currentQuestion,
           answers: cleanAnswers,
           codingAnswers, // 🆕 Include coding answers
+          descriptiveAnswers, // 🆕 Include descriptive answers
           timeSpent
         }).then(() => {
           console.log('✅ Delayed save completed');
@@ -512,11 +515,57 @@ const TestPage = () => {
           currentQuestion,
           answers,
           codingAnswers: cleanAnswers,
+          descriptiveAnswers,
           timeSpent
         }).catch(err => {
           console.error('❌ Failed to save coding answer:', err);
         });
       }, 1000);
+    }
+  };
+
+  // 🆕 Handle descriptive answer changes
+  const handleDescriptiveAnswerChange = (sectionIndex, questionIndex, text) => {
+    const sIdx = parseInt(sectionIndex, 10);
+    const qIdx = parseInt(questionIndex, 10);
+    const answerObj = {
+      sectionIndex: sIdx,
+      questionIndex: qIdx,
+      answerText: text
+    };
+
+    const cleanAnswers = descriptiveAnswers.filter(a => a && a.hasOwnProperty('questionIndex'));
+    
+    const existingIndex = cleanAnswers.findIndex(a => 
+      a.sectionIndex === sIdx && a.questionIndex === qIdx
+    );
+
+    if (existingIndex !== -1) {
+      cleanAnswers[existingIndex] = answerObj;
+    } else {
+      cleanAnswers.push(answerObj);
+    }
+
+    setDescriptiveAnswers(cleanAnswers);
+    
+    // Auto-save descriptive answers (debounced)
+    if (started && studentEmail && test) {
+      setTimeout(() => {
+        axios.post(`${API_URL}/api/progress/save`, {
+          studentEmail,
+          studentName,
+          rollNumber,
+          testId: test._id,
+          currentSection,
+          currentQuestion,
+          answers,
+          codingAnswers,
+          descriptiveAnswers: cleanAnswers,
+          timeSpent
+        }).catch(err => {
+          console.error('❌ Failed to save descriptive answer:', err);
+        });
+      }, 2000);
     }
   };
 
@@ -534,6 +583,7 @@ const TestPage = () => {
         testId: test._id,
         answers: answers.filter(a => a !== null && a !== undefined),
         codingAnswers: codingAnswers.filter(a => a !== null && a !== undefined), // 🆕 Include coding answers
+        descriptiveAnswers: descriptiveAnswers.filter(a => a !== null && a !== undefined), // 🆕 Include descriptive answers
         timeSpent,
         isResumed,
         warnings // Include warnings collected during test
@@ -1228,7 +1278,7 @@ const TestPage = () => {
             </div>
             <div className="flex-1 bg-white p-8 rounded-lg border border-gray-200 overflow-y-auto">
               <h3 className="text-sm font-bold text-gray-600 uppercase mb-4 sticky top-0 bg-white py-2">
-                {currentQuestionData.questionType === 'fill-blank' ? 'Answer' : 'Options'}
+                {currentQuestionData.questionType === 'fill-blank' ? 'Answer' : currentQuestionData.questionType === 'descriptive' ? 'Your Answer' : 'Options'}
               </h3>
               
               {/* Fill in the Blank */}
@@ -1242,6 +1292,41 @@ const TestPage = () => {
                     className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
                   />
                   <p className="text-xs text-gray-500 mt-2">Case Sensitive: {currentQuestionData.caseSensitive ? 'Yes' : 'No'}</p>
+                </div>
+              )}
+
+              {/* Descriptive / Essay */}
+              {currentQuestionData.questionType === 'descriptive' && (
+                <div>
+                  <textarea
+                    value={(() => {
+                      const da = descriptiveAnswers.find(a => a && a.sectionIndex === currentSection && a.questionIndex === currentQuestion);
+                      return da?.answerText || '';
+                    })()}
+                    onChange={(e) => handleDescriptiveAnswerChange(currentSection, currentQuestion, e.target.value)}
+                    placeholder="Write your answer here..."
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none resize-y min-h-[200px]"
+                    rows={8}
+                  />
+                  <div className="flex justify-between mt-2">
+                    <p className="text-xs text-gray-500">
+                      {currentQuestionData.wordLimit > 0
+                        ? `Word limit: ${(() => {
+                            const da = descriptiveAnswers.find(a => a && a.sectionIndex === currentSection && a.questionIndex === currentQuestion);
+                            const words = (da?.answerText || '').trim().split(/\s+/).filter(w => w.length > 0).length;
+                            return words;
+                          })()} / ${currentQuestionData.wordLimit}`
+                        : 'No word limit'}
+                    </p>
+                    <p className="text-xs text-gray-400">📝 This question will be evaluated by the instructor</p>
+                  </div>
+                  {currentQuestionData.wordLimit > 0 && (() => {
+                    const da = descriptiveAnswers.find(a => a && a.sectionIndex === currentSection && a.questionIndex === currentQuestion);
+                    const words = (da?.answerText || '').trim().split(/\s+/).filter(w => w.length > 0).length;
+                    return words > currentQuestionData.wordLimit;
+                  })() && (
+                    <p className="text-xs text-red-500 mt-1">⚠️ You have exceeded the word limit</p>
+                  )}
                 </div>
               )}
               
@@ -1417,7 +1502,7 @@ const TestPage = () => {
           <div className="flex justify-between text-sm text-gray-600 mb-2">
             <span>Overall Progress</span>
             <span>
-              {answers.filter(a => a).length + codingAnswers.filter(a => a).length} / {
+              {answers.filter(a => a).length + codingAnswers.filter(a => a).length + descriptiveAnswers.filter(a => a && a.answerText).length} / {
                 test.sections.reduce((sum, section) => 
                   sum + section.questions.length + (section.codingQuestions?.length || 0), 0
                 )
@@ -1428,7 +1513,7 @@ const TestPage = () => {
             <div 
               className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
               style={{
-                width: `${((answers.filter(a => a).length + codingAnswers.filter(a => a).length) / 
+                width: `${((answers.filter(a => a).length + codingAnswers.filter(a => a).length + descriptiveAnswers.filter(a => a && a.answerText).length) / 
                   test.sections.reduce((sum, section) => 
                     sum + section.questions.length + (section.codingQuestions?.length || 0), 0
                   )) * 100}%`

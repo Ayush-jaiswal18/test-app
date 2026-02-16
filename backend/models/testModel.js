@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const questionSchema = new mongoose.Schema({
   questionType: {
     type: String,
-    enum: ['mcq', 'true-false', 'fill-blank', 'image-based'],
+    enum: ['mcq', 'true-false', 'fill-blank', 'image-based', 'descriptive'],
     default: 'mcq',
     required: true
   },
@@ -30,6 +30,15 @@ const questionSchema = new mongoose.Schema({
   caseSensitive: {
     type: Boolean,
     default: false // For fill-in-the-blank answers
+  },
+  // For descriptive questions
+  modelAnswer: {
+    type: String,
+    default: '' // Reference answer for admin evaluation
+  },
+  wordLimit: {
+    type: Number,
+    default: 0 // 0 means no limit
   },
   points: {
     type: Number,

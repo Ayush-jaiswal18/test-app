@@ -42,6 +42,11 @@ const testProgressSchema = new mongoose.Schema({
     sourceCode: String,
     language: String,
   }],
+  descriptiveAnswers: [{
+    sectionIndex: Number,
+    questionIndex: Number,
+    answerText: String,
+  }],
   timeSpent: {
     type: Number,
     default: 0, // Time spent in seconds

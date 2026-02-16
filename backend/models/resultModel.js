@@ -40,6 +40,17 @@ const resultSchema = new mongoose.Schema({
     originalQuestionIndex: Number, // Original index for randomized questions
     selectedOption: mongoose.Schema.Types.Mixed, // Can be Number or String for fill-blank
   }],
+  // Descriptive question answers
+  descriptiveAnswers: [{
+    sectionIndex: {
+      type: Number,
+      default: 0,
+    },
+    questionIndex: Number, // Index within the questions array
+    answerText: String, // Student's descriptive answer
+    score: Number, // Score given by admin
+    feedback: String, // Admin feedback
+  }],
   // Coding question answers
   codingAnswers: [{
     sectionIndex: {

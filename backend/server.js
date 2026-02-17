@@ -15,7 +15,7 @@ const app = express();
 
 // CORS configuration
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -43,7 +43,6 @@ app.get('/', (req, res) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/tests', require('./routes/testRoutes'));
 app.use('/api/results', require('./routes/resultRoutes'));
-app.use('/api/progress', require('./routes/progressRoutes'));
 app.use('/api/progress', require('./routes/progressRoutes'));
 app.use('/api/code', require('./routes/code'));
 app.use('/api/upload', require('./routes/uploadRoutes'));

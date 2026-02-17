@@ -271,102 +271,10 @@ exports.evaluateCodingQuestion = async (req, res) => {
     const { resultId } = req.params;
     const { sectionIndex, codingQuestionIndex, score, feedback } = req.body;
 
-<<<<<<< HEAD
-        const result = await Result.findById(resultId);
-        if(!result){
-            return res.status(404).json({ success: false, message: 'Result not found' });
-        }
 
-        // Find the coding answer
-        const codingAnswer = result.codingAnswers.find(a => 
-            a.sectionIndex === sectionIndex && a.codingQuestionIndex === codingQuestionIndex
-        );
-
-        if(!codingAnswer){
-            return res.status(404).json({ success: false, message: 'Coding answer not found' });
-        }
-
-        // Update the score
-        codingAnswer.score = score || 0;
-        if(feedback) codingAnswer.feedback = feedback;
-
-        // Recalculate total score
-        const test = await Test.findById(result.test);
-        let newScore = 0;
-        let totalMarks = 0;
-
-        // Calculate MCQ score
-        if (test.sections && test.sections.length > 0) {
-            test.sections.forEach((section, sIdx) => {
-                section.questions.forEach((question, qIdx) => {
-                    totalMarks += (question.points || 1);
-                    const studentAnswer = result.answers.find(a => 
-                        a.sectionIndex === sIdx && a.questionIndex === qIdx
-                    );
-                    
-                    if (question.questionType === 'descriptive') {
-                        // For descriptive, use evaluated score
-                        const descAnswer = result.descriptiveAnswers.find(a => 
-                            a.sectionIndex === sIdx && a.questionIndex === qIdx
-                        );
-                        newScore += (descAnswer?.score || 0);
-                    } else if (question.questionType === 'fill-blank') {
-                        if (studentAnswer) {
-                            const userAnswer = studentAnswer.selectedOption;
-                            const acceptableAnswers = question.acceptableAnswers || [];
-                            let isCorrect = question.caseSensitive
-                                ? acceptableAnswers.includes(userAnswer)
-                                : acceptableAnswers.some(ans => ans.toLowerCase() === userAnswer.toLowerCase());
-                            if (isCorrect) newScore += (question.points || 1);
-                        }
-                    } else {
-                        if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
-                            newScore += (question.points || 1);
-                        }
-                    }
-                });
-            });
-        } else {
-            totalMarks = test.questions.length;
-            test.questions.forEach((question, index) => {
-                const studentAnswer = result.answers.find(a => a.questionIndex === index);
-                if (question.questionType === 'descriptive') {
-                    const descAnswer = result.descriptiveAnswers.find(a => a.questionIndex === index);
-                    newScore += (descAnswer?.score || 0);
-                } else if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
-                    newScore++;
-                }
-            });
-        }
-
-        // Add coding question scores
-        result.codingAnswers.forEach(ca => {
-            const section = test.sections?.[ca.sectionIndex];
-            const codingQuestion = section?.codingQuestions?.[ca.codingQuestionIndex];
-            if(codingQuestion) {
-                const maxScore = codingQuestion.testCases?.reduce((sum, tc) => sum + (tc.weight || 1), 0) || 10;
-                totalMarks += maxScore;
-                newScore += (ca.score || 0);
-            }
-        });
-
-        result.score = newScore;
-        result.totalMarks = totalMarks;
-        await result.save();
-
-        res.status(200).json({ 
-            success: true, 
-            message: 'Coding question evaluated successfully',
-            data: result 
-        });
-
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
-=======
     const result = await Result.findById(resultId);
     if (!result) {
       return res.status(404).json({ success: false, message: 'Result not found' });
->>>>>>> 4448852 (Added multiple questions type and merge upload functions)
     }
 
     // Find the coding answer
@@ -391,12 +299,30 @@ exports.evaluateCodingQuestion = async (req, res) => {
     if (test.sections && test.sections.length > 0) {
       test.sections.forEach((section, sIdx) => {
         section.questions.forEach((question, qIdx) => {
-          totalMarks++;
+          totalMarks += (question.points || 1);
           const studentAnswer = result.answers.find(a =>
             a.sectionIndex === sIdx && a.questionIndex === qIdx
           );
-          if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
-            newScore++;
+
+          if (question.questionType === 'descriptive') {
+            // For descriptive, use evaluated score
+            const descAnswer = result.descriptiveAnswers.find(a =>
+              a.sectionIndex === sIdx && a.questionIndex === qIdx
+            );
+            newScore += (descAnswer?.score || 0);
+          } else if (question.questionType === 'fill-blank') {
+            if (studentAnswer) {
+              const userAnswer = studentAnswer.selectedOption;
+              const acceptableAnswers = question.acceptableAnswers || [];
+              let isCorrect = question.caseSensitive
+                ? acceptableAnswers.includes(userAnswer)
+                : acceptableAnswers.some(ans => ans.toLowerCase() === userAnswer.toLowerCase());
+              if (isCorrect) newScore += (question.points || 1);
+            }
+          } else {
+            if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
+              newScore += (question.points || 1);
+            }
           }
         });
       });
@@ -404,7 +330,10 @@ exports.evaluateCodingQuestion = async (req, res) => {
       totalMarks = test.questions.length;
       test.questions.forEach((question, index) => {
         const studentAnswer = result.answers.find(a => a.questionIndex === index);
-        if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
+        if (question.questionType === 'descriptive') {
+          const descAnswer = result.descriptiveAnswers.find(a => a.questionIndex === index);
+          newScore += (descAnswer?.score || 0);
+        } else if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
           newScore++;
         }
       });
@@ -440,95 +369,95 @@ exports.evaluateCodingQuestion = async (req, res) => {
 // @route   POST /api/results/:resultId/evaluate-descriptive
 // @access  Private (Admin)
 exports.evaluateDescriptiveQuestion = async (req, res) => {
-    try {
-        const { resultId } = req.params;
-        const { sectionIndex, questionIndex, score, feedback } = req.body;
+  try {
+    const { resultId } = req.params;
+    const { sectionIndex, questionIndex, score, feedback } = req.body;
 
-        const result = await Result.findById(resultId);
-        if(!result){
-            return res.status(404).json({ success: false, message: 'Result not found' });
-        }
-
-        // Find the descriptive answer
-        let descriptiveAnswer = result.descriptiveAnswers.find(a => 
-            a.sectionIndex === sectionIndex && a.questionIndex === questionIndex
-        );
-
-        if(!descriptiveAnswer){
-            // If no descriptive answer exists yet, create one
-            result.descriptiveAnswers.push({
-                sectionIndex,
-                questionIndex,
-                answerText: '',
-                score: score || 0,
-                feedback: feedback || ''
-            });
-            descriptiveAnswer = result.descriptiveAnswers[result.descriptiveAnswers.length - 1];
-        } else {
-            descriptiveAnswer.score = score || 0;
-            if(feedback) descriptiveAnswer.feedback = feedback;
-        }
-
-        // Recalculate total score
-        const test = await Test.findById(result.test);
-        let newScore = 0;
-        let totalMarks = 0;
-
-        // Calculate MCQ + descriptive score
-        if (test.sections && test.sections.length > 0) {
-            test.sections.forEach((section, sIdx) => {
-                section.questions.forEach((question, qIdx) => {
-                    totalMarks += (question.points || 1);
-                    const studentAnswer = result.answers.find(a => 
-                        a.sectionIndex === sIdx && a.questionIndex === qIdx
-                    );
-                    
-                    if (question.questionType === 'descriptive') {
-                        // For descriptive, use evaluated score
-                        const descAnswer = result.descriptiveAnswers.find(a => 
-                            a.sectionIndex === sIdx && a.questionIndex === qIdx
-                        );
-                        newScore += (descAnswer?.score || 0);
-                    } else if (question.questionType === 'fill-blank') {
-                        if (studentAnswer) {
-                            const userAnswer = studentAnswer.selectedOption;
-                            const acceptableAnswers = question.acceptableAnswers || [];
-                            let isCorrect = question.caseSensitive
-                                ? acceptableAnswers.includes(userAnswer)
-                                : acceptableAnswers.some(ans => ans.toLowerCase() === userAnswer.toLowerCase());
-                            if (isCorrect) newScore += (question.points || 1);
-                        }
-                    } else {
-                        if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
-                            newScore += (question.points || 1);
-                        }
-                    }
-                });
-            });
-        }
-
-        // Add coding question scores
-        result.codingAnswers.forEach(ca => {
-            const section = test.sections?.[ca.sectionIndex];
-            const codingQuestion = section?.codingQuestions?.[ca.codingQuestionIndex];
-            if(codingQuestion) {
-                const maxScore = codingQuestion.testCases?.reduce((sum, tc) => sum + (tc.weight || 1), 0) || 10;
-                totalMarks += maxScore;
-                newScore += (ca.score || 0);
-            }
-        });
-
-        result.score = newScore;
-        result.totalMarks = totalMarks;
-        await result.save();
-
-        res.status(200).json({ 
-            success: true, 
-            message: 'Descriptive question evaluated successfully',
-            data: result 
-        });
-
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+    const result = await Result.findById(resultId);
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'Result not found' });
     }
+
+    // Find the descriptive answer
+    let descriptiveAnswer = result.descriptiveAnswers.find(a =>
+      a.sectionIndex === sectionIndex && a.questionIndex === questionIndex
+    );
+
+    if (!descriptiveAnswer) {
+      // If no descriptive answer exists yet, create one
+      result.descriptiveAnswers.push({
+        sectionIndex,
+        questionIndex,
+        answerText: '',
+        score: score || 0,
+        feedback: feedback || ''
+      });
+      descriptiveAnswer = result.descriptiveAnswers[result.descriptiveAnswers.length - 1];
+    } else {
+      descriptiveAnswer.score = score || 0;
+      if (feedback) descriptiveAnswer.feedback = feedback;
+    }
+
+    // Recalculate total score
+    const test = await Test.findById(result.test);
+    let newScore = 0;
+    let totalMarks = 0;
+
+    // Calculate MCQ + descriptive score
+    if (test.sections && test.sections.length > 0) {
+      test.sections.forEach((section, sIdx) => {
+        section.questions.forEach((question, qIdx) => {
+          totalMarks += (question.points || 1);
+          const studentAnswer = result.answers.find(a =>
+            a.sectionIndex === sIdx && a.questionIndex === qIdx
+          );
+
+          if (question.questionType === 'descriptive') {
+            // For descriptive, use evaluated score
+            const descAnswer = result.descriptiveAnswers.find(a =>
+              a.sectionIndex === sIdx && a.questionIndex === qIdx
+            );
+            newScore += (descAnswer?.score || 0);
+          } else if (question.questionType === 'fill-blank') {
+            if (studentAnswer) {
+              const userAnswer = studentAnswer.selectedOption;
+              const acceptableAnswers = question.acceptableAnswers || [];
+              let isCorrect = question.caseSensitive
+                ? acceptableAnswers.includes(userAnswer)
+                : acceptableAnswers.some(ans => ans.toLowerCase() === userAnswer.toLowerCase());
+              if (isCorrect) newScore += (question.points || 1);
+            }
+          } else {
+            if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
+              newScore += (question.points || 1);
+            }
+          }
+        });
+      });
+    }
+
+    // Add coding question scores
+    result.codingAnswers.forEach(ca => {
+      const section = test.sections?.[ca.sectionIndex];
+      const codingQuestion = section?.codingQuestions?.[ca.codingQuestionIndex];
+      if (codingQuestion) {
+        const maxScore = codingQuestion.testCases?.reduce((sum, tc) => sum + (tc.weight || 1), 0) || 10;
+        totalMarks += maxScore;
+        newScore += (ca.score || 0);
+      }
+    });
+
+    result.score = newScore;
+    result.totalMarks = totalMarks;
+    await result.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Descriptive question evaluated successfully',
+      data: result
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+  }
 };

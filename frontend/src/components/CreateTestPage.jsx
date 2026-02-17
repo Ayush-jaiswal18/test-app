@@ -715,8 +715,13 @@ const CreateTestPage = () => {
                                       });
 
                                       // Construct full URL
+                                      // If backend returns data URI (base64), use it directly
                                       // If backend returns relative path /uploads/filename, prepend API_URL
-                                      const fullUrl = `${API_URL}${res.data.filePath}`;
+                                      const filePath = res.data.filePath;
+                                      const fullUrl = filePath.startsWith('data:')
+                                        ? filePath
+                                        : `${API_URL}${filePath}`;
+
                                       handleQuestionChange(sIndex, qIndex, 'imageUrl', fullUrl);
                                     } catch (err) {
                                       console.error('Upload failed:', err);

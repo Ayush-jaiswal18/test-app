@@ -490,43 +490,7 @@ const TestPage = () => {
     } catch (err) {
       console.error('❌ Error in handleAnswerChange:', err);
     }
-<<<<<<< HEAD
 
-    console.log('All answers after change:', cleanAnswers);
-    console.log('🔥 ANSWER CHANGED:', {
-      originalIndices: { sectionIndex, questionIndex, optionIndex },
-      convertedIndices: { sIdx, qIdx, oIdx },
-      answerObj,
-      totalAnswers: cleanAnswers.length
-    });
-    
-    setAnswers(cleanAnswers);
-    
-    // Force immediate save and also schedule a delayed save for safety
-    saveProgress();
-    setTimeout(() => {
-      console.log('🔄 Delayed save triggered for answer:', answerObj);
-      if (started && studentEmail && test) {
-        axios.post(`${API_URL}/api/progress/save`, {
-          studentEmail,
-          studentName,
-          rollNumber,
-          testId: test._id,
-          currentSection,
-          currentQuestion,
-          answers: cleanAnswers,
-          codingAnswers, // 🆕 Include coding answers
-          descriptiveAnswers, // 🆕 Include descriptive answers
-          timeSpent
-        }).then(() => {
-          console.log('✅ Delayed save completed');
-        }).catch(err => {
-          console.error('❌ Delayed save failed:', err);
-        });
-      }
-    }, 1000);
-=======
->>>>>>> 4448852 (Added multiple questions type and merge upload functions)
   };
 
   // 🆕 Handle coding answer changes
@@ -586,8 +550,8 @@ const TestPage = () => {
     };
 
     const cleanAnswers = descriptiveAnswers.filter(a => a && a.hasOwnProperty('questionIndex'));
-    
-    const existingIndex = cleanAnswers.findIndex(a => 
+
+    const existingIndex = cleanAnswers.findIndex(a =>
       a.sectionIndex === sIdx && a.questionIndex === qIdx
     );
 
@@ -598,7 +562,7 @@ const TestPage = () => {
     }
 
     setDescriptiveAnswers(cleanAnswers);
-    
+
     // Auto-save descriptive answers (debounced)
     if (started && studentEmail && test) {
       setTimeout(() => {
@@ -1347,60 +1311,6 @@ const TestPage = () => {
                 </div>
               )}
 
-<<<<<<< HEAD
-              {/* Descriptive / Essay */}
-              {currentQuestionData.questionType === 'descriptive' && (
-                <div>
-                  <textarea
-                    value={(() => {
-                      const da = descriptiveAnswers.find(a => a && a.sectionIndex === currentSection && a.questionIndex === currentQuestion);
-                      return da?.answerText || '';
-                    })()}
-                    onChange={(e) => handleDescriptiveAnswerChange(currentSection, currentQuestion, e.target.value)}
-                    placeholder="Write your answer here..."
-                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none resize-y min-h-[200px]"
-                    rows={8}
-                  />
-                  <div className="flex justify-between mt-2">
-                    <p className="text-xs text-gray-500">
-                      {currentQuestionData.wordLimit > 0
-                        ? `Word limit: ${(() => {
-                            const da = descriptiveAnswers.find(a => a && a.sectionIndex === currentSection && a.questionIndex === currentQuestion);
-                            const words = (da?.answerText || '').trim().split(/\s+/).filter(w => w.length > 0).length;
-                            return words;
-                          })()} / ${currentQuestionData.wordLimit}`
-                        : 'No word limit'}
-                    </p>
-                    <p className="text-xs text-gray-400">📝 This question will be evaluated by the instructor</p>
-                  </div>
-                  {currentQuestionData.wordLimit > 0 && (() => {
-                    const da = descriptiveAnswers.find(a => a && a.sectionIndex === currentSection && a.questionIndex === currentQuestion);
-                    const words = (da?.answerText || '').trim().split(/\s+/).filter(w => w.length > 0).length;
-                    return words > currentQuestionData.wordLimit;
-                  })() && (
-                    <p className="text-xs text-red-500 mt-1">⚠️ You have exceeded the word limit</p>
-                  )}
-                </div>
-              )}
-              
-              {/* MCQ, True/False, and Image-based options */}
-              {(currentQuestionData.questionType === 'mcq' || 
-                currentQuestionData.questionType === 'true-false' || 
-                currentQuestionData.questionType === 'image-based') && (
-                <div className="space-y-2">
-                  {currentQuestionData.options && currentQuestionData.options.map((option, oIndex) => (
-                    <label key={oIndex} className="flex items-center p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition">
-                      <input
-                        type="radio"
-                        name={`section-${currentSection}-question-${currentQuestion}`}
-                        className="mr-3 w-4 h-4 flex-shrink-0"
-                        checked={currentAnswer && currentAnswer.selectedOption === oIndex}
-                        onChange={() => handleAnswerChange(currentSection, currentQuestion, oIndex)}
-                      />
-                      <span className="text-gray-700">{option}</span>
-                    </label>
-                  ))}
-=======
               {/* Descriptive Answer */}
               {currentQuestionData.questionType === 'descriptive' && (
                 <div>
@@ -1410,7 +1320,6 @@ const TestPage = () => {
                     placeholder="Type your detailed answer here..."
                     className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none min-h-[150px]"
                   />
->>>>>>> 4448852 (Added multiple questions type and merge upload functions)
                 </div>
               )}
 
@@ -1434,95 +1343,99 @@ const TestPage = () => {
                   </div>
                 )}
             </div>
-          </div>
+          </div >
         )}
 
         {/* Coding Questions */}
-        {questionMode === 'coding' && hasCoding && currentCodingQuestionData && (
-          <div className="mb-8">
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <h3 className="text-xl font-semibold mb-1">
-                  {currentCodingQuestion + 1}. {currentCodingQuestionData.title}
-                </h3>
-                <p className="text-sm text-gray-500">Scroll inside either panel to view full content.</p>
-              </div>
-            </div>
-            <div className="flex flex-col lg:flex-row gap-4 bg-white border rounded-xl shadow-sm h-[calc(100vh-280px)]">
-              <div className="lg:w-1/2 h-full overflow-y-auto p-4 border-b lg:border-b-0 lg:border-r">
-                <h4 className="text-lg font-semibold mb-3 text-gray-800">Problem Statement</h4>
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-700 whitespace-pre-wrap">
-                  {currentCodingQuestionData.description}
+        {
+          questionMode === 'coding' && hasCoding && currentCodingQuestionData && (
+            <div className="mb-8">
+              <div className="mb-4 flex items-start justify-between">
+                <div>
+                  <h3 className="text-xl font-semibold mb-1">
+                    {currentCodingQuestion + 1}. {currentCodingQuestionData.title}
+                  </h3>
+                  <p className="text-sm text-gray-500">Scroll inside either panel to view full content.</p>
                 </div>
-                {currentCodingQuestionData.sampleInput && (
-                  <div className="mt-4">
-                    <h5 className="text-sm font-semibold text-gray-600 mb-1">Sample Input</h5>
-                    <pre className="bg-gray-900 text-green-300 text-sm rounded-lg p-3 overflow-x-auto">{currentCodingQuestionData.sampleInput}</pre>
-                  </div>
-                )}
-                {currentCodingQuestionData.sampleOutput && (
-                  <div className="mt-3">
-                    <h5 className="text-sm font-semibold text-gray-600 mb-1">Sample Output</h5>
-                    <pre className="bg-gray-900 text-green-300 text-sm rounded-lg p-3 overflow-x-auto">{currentCodingQuestionData.sampleOutput}</pre>
-                  </div>
-                )}
               </div>
-
-              <div className="lg:w-1/2 h-full overflow-y-auto p-4 flex flex-col gap-4">
-                <div className="flex-1 min-h-[420px]">
-                  <CodeEditor
-                    key={`section-${currentSection}-coding-${currentCodingQuestion}`}
-                    questionId={null} // Coding questions in tests don't use the separate Question model
-                    starterCode={currentCodingQuestionData.starterCode || ""}
-                    defaultLanguage={currentCodingAnswer?.language || currentCodingQuestionData.language || "javascript"}
-                    onCodeChange={(code, language) =>
-                      handleCodingAnswerChange(currentSection, currentCodingQuestion, code, language)
-                    }
-                    initialCode={currentCodingAnswer?.sourceCode || currentCodingQuestionData.starterCode || ""}
-                    readOnly={false}
-                    allowedLanguages={
-                      (currentCodingQuestionData.allowedLanguages && currentCodingQuestionData.allowedLanguages.length > 0)
-                        ? currentCodingQuestionData.allowedLanguages
-                        : SUPPORTED_LANGUAGES
-                    }
-                  />
-                </div>
-                {currentCodingQuestionData.testCases && currentCodingQuestionData.testCases.length > 0 && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Test Cases</h4>
-                    <div className="space-y-3">
-                      {currentCodingQuestionData.testCases.map((tc, idx) => (
-                        <div key={idx} className="bg-white border rounded-lg p-3 shadow-sm">
-                          <div className="flex justify-between text-xs text-gray-500 mb-2">
-                            <span>Test Case {idx + 1}</span>
-                            <span>Weight: {tc.weight || 1}</span>
-                          </div>
-                          <div className="mb-2">
-                            <p className="text-xs font-semibold text-gray-600 mb-1">Input</p>
-                            <pre className="bg-gray-900 text-green-300 text-xs rounded p-2 overflow-x-auto">{tc.input || 'N/A'}</pre>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-gray-600 mb-1">Expected Output</p>
-                            <pre className="bg-gray-900 text-green-300 text-xs rounded p-2 overflow-x-auto">{tc.expectedOutput || 'N/A'}</pre>
-                          </div>
-                        </div>
-                      ))}
+              <div className="flex flex-col lg:flex-row gap-4 bg-white border rounded-xl shadow-sm h-[calc(100vh-280px)]">
+                <div className="lg:w-1/2 h-full overflow-y-auto p-4 border-b lg:border-b-0 lg:border-r">
+                  <h4 className="text-lg font-semibold mb-3 text-gray-800">Problem Statement</h4>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-700 whitespace-pre-wrap">
+                    {currentCodingQuestionData.description}
+                  </div>
+                  {currentCodingQuestionData.sampleInput && (
+                    <div className="mt-4">
+                      <h5 className="text-sm font-semibold text-gray-600 mb-1">Sample Input</h5>
+                      <pre className="bg-gray-900 text-green-300 text-sm rounded-lg p-3 overflow-x-auto">{currentCodingQuestionData.sampleInput}</pre>
                     </div>
+                  )}
+                  {currentCodingQuestionData.sampleOutput && (
+                    <div className="mt-3">
+                      <h5 className="text-sm font-semibold text-gray-600 mb-1">Sample Output</h5>
+                      <pre className="bg-gray-900 text-green-300 text-sm rounded-lg p-3 overflow-x-auto">{currentCodingQuestionData.sampleOutput}</pre>
+                    </div>
+                  )}
+                </div>
+
+                <div className="lg:w-1/2 h-full overflow-y-auto p-4 flex flex-col gap-4">
+                  <div className="flex-1 min-h-[420px]">
+                    <CodeEditor
+                      key={`section-${currentSection}-coding-${currentCodingQuestion}`}
+                      questionId={null} // Coding questions in tests don't use the separate Question model
+                      starterCode={currentCodingQuestionData.starterCode || ""}
+                      defaultLanguage={currentCodingAnswer?.language || currentCodingQuestionData.language || "javascript"}
+                      onCodeChange={(code, language) =>
+                        handleCodingAnswerChange(currentSection, currentCodingQuestion, code, language)
+                      }
+                      initialCode={currentCodingAnswer?.sourceCode || currentCodingQuestionData.starterCode || ""}
+                      readOnly={false}
+                      allowedLanguages={
+                        (currentCodingQuestionData.allowedLanguages && currentCodingQuestionData.allowedLanguages.length > 0)
+                          ? currentCodingQuestionData.allowedLanguages
+                          : SUPPORTED_LANGUAGES
+                      }
+                    />
                   </div>
-                )}
+                  {currentCodingQuestionData.testCases && currentCodingQuestionData.testCases.length > 0 && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Test Cases</h4>
+                      <div className="space-y-3">
+                        {currentCodingQuestionData.testCases.map((tc, idx) => (
+                          <div key={idx} className="bg-white border rounded-lg p-3 shadow-sm">
+                            <div className="flex justify-between text-xs text-gray-500 mb-2">
+                              <span>Test Case {idx + 1}</span>
+                              <span>Weight: {tc.weight || 1}</span>
+                            </div>
+                            <div className="mb-2">
+                              <p className="text-xs font-semibold text-gray-600 mb-1">Input</p>
+                              <pre className="bg-gray-900 text-green-300 text-xs rounded p-2 overflow-x-auto">{tc.input || 'N/A'}</pre>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-gray-600 mb-1">Expected Output</p>
+                              <pre className="bg-gray-900 text-green-300 text-xs rounded p-2 overflow-x-auto">{tc.expectedOutput || 'N/A'}</pre>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
         {/* Show message if no questions of selected type */}
-        {((questionMode === 'mcq' && !hasMCQ) || (questionMode === 'coding' && !hasCoding)) && (
-          <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-yellow-800">
-              No {questionMode === 'mcq' ? 'multiple choice' : 'coding'} questions in this section.
-            </p>
-          </div>
-        )}
+        {
+          ((questionMode === 'mcq' && !hasMCQ) || (questionMode === 'coding' && !hasCoding)) && (
+            <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-yellow-800">
+                No {questionMode === 'mcq' ? 'multiple choice' : 'coding'} questions in this section.
+              </p>
+            </div>
+          )
+        }
 
         <div className="flex justify-between items-center">
           <div className="flex space-x-2">
@@ -1586,36 +1499,26 @@ const TestPage = () => {
           <div className="flex justify-between text-sm text-gray-600 mb-2">
             <span>Overall Progress</span>
             <span>
-<<<<<<< HEAD
-              {answers.filter(a => a).length + codingAnswers.filter(a => a).length + descriptiveAnswers.filter(a => a && a.answerText).length} / {
-                test.sections.reduce((sum, section) => 
-=======
               {answers.filter(a => a).length + codingAnswers.filter(a => a).length} / {
                 test.sections.reduce((sum, section) =>
->>>>>>> 4448852 (Added multiple questions type and merge upload functions)
                   sum + section.questions.length + (section.codingQuestions?.length || 0), 0
                 )
               } answered
-            </span>
-          </div>
+            </span >
+          </div >
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{
-<<<<<<< HEAD
-                width: `${((answers.filter(a => a).length + codingAnswers.filter(a => a).length + descriptiveAnswers.filter(a => a && a.answerText).length) / 
-                  test.sections.reduce((sum, section) => 
-=======
                 width: `${((answers.filter(a => a).length + codingAnswers.filter(a => a).length) /
                   test.sections.reduce((sum, section) =>
->>>>>>> 4448852 (Added multiple questions type and merge upload functions)
                     sum + section.questions.length + (section.codingQuestions?.length || 0), 0
                   )) * 100}%`
               }}
             ></div>
           </div>
-        </div>
-      </div>
+        </div >
+      </div >
     );
   }
 

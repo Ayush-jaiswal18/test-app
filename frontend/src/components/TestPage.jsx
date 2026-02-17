@@ -17,7 +17,7 @@ const TestPage = () => {
   const [descriptiveAnswers, setDescriptiveAnswers] = useState([]); // 🆕 Store descriptive question answers
   const [questionMode, setQuestionMode] = useState('mcq'); // 'mcq' or 'coding'
   const [currentCodingQuestion, setCurrentCodingQuestion] = useState(0);
-  
+
   const [started, setStarted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(null);
@@ -42,7 +42,7 @@ const TestPage = () => {
       const currentSectionData = test.sections[currentSection];
       const hasMCQ = currentSectionData.questions && currentSectionData.questions.length > 0;
       const hasCoding = currentSectionData.codingQuestions && currentSectionData.codingQuestions.length > 0;
-      
+
       // If no MCQ but has coding questions, switch to coding mode
       if (!hasMCQ && hasCoding && questionMode === 'mcq') {
         setQuestionMode('coding');
@@ -73,7 +73,7 @@ const TestPage = () => {
         descriptiveAnswers, // 🆕 Include descriptive answers
         timeSpent
       };
-      
+
       console.log('🔄 SAVING PROGRESS:', {
         answersCount: answers.length,
         currentSection,
@@ -86,7 +86,7 @@ const TestPage = () => {
           selectedOption: a?.selectedOption
         }))
       });
-      
+
       await axios.post(`${API_URL}/api/progress/save`, progressData);
       console.log('✅ Progress saved successfully');
     } catch (err) {
@@ -103,10 +103,10 @@ const TestPage = () => {
         } else {
           response = await axios.get(`${API_URL}/api/tests/${testId}/public`);
         }
-        
+
         const testData = response.data.data;
         setTest(testData);
-        
+
         // Initialize answers array based on test structure
         if (testData.sections && testData.sections.length > 0) {
           // For sectioned tests
@@ -120,7 +120,7 @@ const TestPage = () => {
           setAnswers(new Array(testData.questions.length).fill(null));
           setCodingAnswers([]);
         }
-        
+
         setTimeLeft(testData.duration * 60);
       } catch (err) {
         setError('Failed to load the test. The link may be invalid.');
@@ -136,7 +136,7 @@ const TestPage = () => {
     try {
       // First check if test has already been submitted
       const submissionResponse = await axios.get(`${API_URL}/api/results/check/${test._id}/${email}`);
-      
+
       if (submissionResponse.data.isSubmitted) {
         // Test already submitted - show submission result
         const submissionData = submissionResponse.data.data;
@@ -156,7 +156,7 @@ const TestPage = () => {
       try {
         const progressResponse = await axios.get(`${API_URL}/api/progress/${test._id}/${email}`);
         const savedData = progressResponse.data.data;
-        
+
         console.log('📥 RETRIEVED PROGRESS:', {
           answersCount: savedData.answers?.length || 0,
           currentSection: savedData.currentSection,
@@ -169,7 +169,7 @@ const TestPage = () => {
             selectedOption: a?.selectedOption
           })) || []
         });
-        
+
         setSavedProgress(savedData);
         setShowResumeDialog(true);
         setShowInstructions(false);
@@ -224,7 +224,7 @@ const TestPage = () => {
 
     if (studentName.trim() && studentEmail.trim() && rollNumber.trim()) {
       await checkExistingProgress(studentEmail);
-      
+
       // If no dialog is shown (no existing progress/submission), start fresh
       if (!showResumeDialog) {
         // Initialize fresh start values
@@ -234,26 +234,26 @@ const TestPage = () => {
         setCurrentQuestion(0);
         setCurrentCodingQuestion(0);
         setIsResumed(false);
-        
+
         // Auto-set question mode based on first section
         if (test.sections && test.sections.length > 0) {
           const firstSection = test.sections[0];
           const hasMCQ = firstSection.questions && firstSection.questions.length > 0;
           const hasCoding = firstSection.codingQuestions && firstSection.codingQuestions.length > 0;
-          
+
           if (!hasMCQ && hasCoding) {
             setQuestionMode('coding');
           } else {
             setQuestionMode('mcq');
           }
         }
-        
+
         console.log('Starting fresh test (no existing progress):', {
           totalDuration: test.duration * 60,
           timeSpent: 0,
           timeLeft: test.duration * 60
         });
-        
+
         setShowInstructions(false);
         setStarted(true);
         // Show preview for the first section
@@ -271,18 +271,18 @@ const TestPage = () => {
       const resumeSection = savedProgress.currentSection || 0;
       setCurrentSection(resumeSection);
       setCurrentQuestion(savedProgress.currentQuestion || 0);
-      
+
       // Mark all sections up to and including the current section as viewed
       const viewedSet = new Set();
       for (let i = 0; i <= resumeSection; i++) {
         viewedSet.add(i);
       }
       setViewedSections(viewedSet);
-      
+
       // Clean up answers array - remove any null/undefined values and ensure number types
-      const cleanAnswers = (savedProgress.answers || []).filter(answer => 
-        answer && 
-        answer.hasOwnProperty('questionIndex') && 
+      const cleanAnswers = (savedProgress.answers || []).filter(answer =>
+        answer &&
+        answer.hasOwnProperty('questionIndex') &&
         answer.hasOwnProperty('selectedOption') &&
         answer.selectedOption !== null &&
         answer.selectedOption !== undefined
@@ -292,27 +292,27 @@ const TestPage = () => {
         questionIndex: parseInt(answer.questionIndex, 10),
         selectedOption: parseInt(answer.selectedOption, 10)
       }));
-      
+
       setAnswers(cleanAnswers);
-      
+
       // 🆕 Restore coding answers
-      const cleanCodingAnswers = (savedProgress.codingAnswers || []).filter(answer => 
-        answer && 
+      const cleanCodingAnswers = (savedProgress.codingAnswers || []).filter(answer =>
+        answer &&
         answer.hasOwnProperty('codingQuestionIndex') &&
         answer.sourceCode &&
         answer.sourceCode.trim() !== ''
       );
       setCodingAnswers(cleanCodingAnswers);
-      
+
       // Calculate the time properly for resumed test
       const totalDurationSeconds = test.duration * 60;
       const timeAlreadySpent = savedProgress.timeSpent || 0;
       const remainingTime = Math.max(0, totalDurationSeconds - timeAlreadySpent);
-      
+
       setTimeSpent(timeAlreadySpent);
       setTimeLeft(remainingTime);
       setIsResumed(true);
-      
+
       console.log('🔄 RESUMING TEST with details:', {
         totalDuration: totalDurationSeconds,
         timeAlreadySpent,
@@ -323,7 +323,7 @@ const TestPage = () => {
         currentSection: savedProgress.currentSection,
         currentQuestion: savedProgress.currentQuestion
       });
-      
+
       // Debug: Show what answers are being restored
       cleanAnswers.forEach((answer, index) => {
         console.log(`🔸 Restored Answer ${index}:`, {
@@ -332,17 +332,17 @@ const TestPage = () => {
           selectedOption: answer.selectedOption
         });
       });
-      
+
       // Debug: After state is set, check what should be marked
       setTimeout(() => {
         console.log('🎯 POST-RESUME VERIFICATION:');
         if (test && test.sections) {
           test.sections.forEach((section, sIdx) => {
             section.questions.forEach((question, qIdx) => {
-              const matchingAnswer = cleanAnswers.find(a => 
+              const matchingAnswer = cleanAnswers.find(a =>
                 a.sectionIndex === sIdx && a.questionIndex === qIdx
               );
-              console.log(`Section ${sIdx}, Q${qIdx}: ${matchingAnswer ? '✅ HAS ANSWER' : '❌ NO ANSWER'}`, 
+              console.log(`Section ${sIdx}, Q${qIdx}: ${matchingAnswer ? '✅ HAS ANSWER' : '❌ NO ANSWER'}`,
                 matchingAnswer ? `(Option: ${matchingAnswer.selectedOption})` : ''
               );
             });
@@ -359,20 +359,20 @@ const TestPage = () => {
     // Reset all progress for fresh start
     setCurrentSection(0);
     setCurrentQuestion(0);
-    setAnswers(test.sections && test.sections.length > 0 
+    setAnswers(test.sections && test.sections.length > 0
       ? new Array(test.sections.reduce((sum, section) => sum + section.questions.length, 0)).fill(null)
       : new Array(test.questions?.length || 0).fill(null)
     );
     setTimeSpent(0);
     setTimeLeft(test.duration * 60);
     setIsResumed(false);
-    
+
     console.log('Starting fresh test:', {
       totalDuration: test.duration * 60,
       timeSpent: 0,
       timeLeft: test.duration * 60
     });
-    
+
     setShowResumeDialog(false);
     setShowInstructions(false);
     setStarted(true);
@@ -382,66 +382,115 @@ const TestPage = () => {
     setViewedSections(new Set());
   };
 
-  const handleAnswerChange = (sectionIndex, questionIndex, optionIndex) => {
-    // Ensure all indices are numbers (convert from string if needed)
-    const sIdx = parseInt(sectionIndex, 10);
-    const qIdx = parseInt(questionIndex, 10);
-    const oIdx = parseInt(optionIndex, 10);
-    
-    // Get the original index from the question object (for randomized questions)
-    let originalQuestionIndex = qIdx;
-    if (test.sections && test.sections.length > 0) {
-      const currentSectionData = test.sections[sIdx];
-      if (currentSectionData && currentSectionData.questions && currentSectionData.questions[qIdx]) {
-        originalQuestionIndex = currentSectionData.questions[qIdx].originalIndex !== undefined 
-          ? currentSectionData.questions[qIdx].originalIndex 
-          : qIdx;
+  const handleAnswerChange = (sectionIndex, questionIndex, value) => {
+    try {
+      // Ensure section and question indices are numbers
+      const sIdx = parseInt(sectionIndex, 10);
+      const qIdx = parseInt(questionIndex, 10);
+
+      let selectedOption = value;
+
+      // Determine question type safely
+      let questionType = 'mcq';
+      if (test.sections && test.sections[sIdx] && test.sections[sIdx].questions && test.sections[sIdx].questions[qIdx]) {
+        questionType = test.sections[sIdx].questions[qIdx].questionType;
+      } else if (test.questions && test.questions[qIdx]) {
+        questionType = test.questions[qIdx].questionType;
       }
-    }
-    
-    console.log('🎯 ANSWER CHANGE - Type conversion:', {
-      original: { sectionIndex, questionIndex, optionIndex },
-      converted: { sIdx, qIdx, oIdx },
-      originalQuestionIndex,
-      types: {
-        original: { s: typeof sectionIndex, q: typeof questionIndex, o: typeof optionIndex },
-        converted: { s: typeof sIdx, q: typeof qIdx, o: typeof oIdx }
+
+      console.log('📝 Handling Answer Change:', { sIdx, qIdx, value, questionType });
+
+      // Only convert to number if it's strictly a digit-only string AND NOT a text-based question
+      const isTextQuestion = questionType === 'fill-blank' || questionType === 'descriptive';
+
+      if (!isTextQuestion && typeof value === 'string' && /^\d+$/.test(value)) {
+        selectedOption = parseInt(value, 10);
       }
-    });
-    
-    // Clean the current answers array first
-    const cleanAnswers = answers.filter(a => a && a.hasOwnProperty('questionIndex'));
-    
-    const answerObj = test.sections && test.sections.length > 0
-      ? { 
-          sectionIndex: sIdx, 
-          questionIndex: qIdx, 
-          originalQuestionIndex: originalQuestionIndex, // Store original index for backend
-          selectedOption: oIdx 
+
+      // Get the original index from the question object (for randomized questions)
+      let originalQuestionIndex = qIdx;
+      if (test.sections && test.sections.length > 0) {
+        const currentSectionData = test.sections[sIdx];
+        if (currentSectionData && currentSectionData.questions && currentSectionData.questions[qIdx]) {
+          originalQuestionIndex = currentSectionData.questions[qIdx].originalIndex !== undefined
+            ? currentSectionData.questions[qIdx].originalIndex
+            : qIdx;
         }
-      : { 
-          sectionIndex: 0, 
-          questionIndex: qIdx, 
+      }
+
+      // Clean the current answers array first
+      const cleanAnswers = answers.filter(a => a && a.hasOwnProperty('questionIndex'));
+
+      const answerObj = test.sections && test.sections.length > 0
+        ? {
+          sectionIndex: sIdx,
+          questionIndex: qIdx,
           originalQuestionIndex: originalQuestionIndex, // Store original index for backend
-          selectedOption: oIdx 
+          selectedOption: selectedOption
+        }
+        : {
+          sectionIndex: 0,
+          questionIndex: qIdx,
+          originalQuestionIndex: originalQuestionIndex, // Store original index for backend
+          selectedOption: selectedOption
         }; // Always include sectionIndex for consistency
 
-    // Find existing answer and update or add new one
-    const existingIndex = cleanAnswers.findIndex(a => {
-      if (test.sections && test.sections.length > 0) {
-        return a.sectionIndex === sIdx && a.questionIndex === qIdx;
-      } else {
-        return a.questionIndex === qIdx && (a.sectionIndex === 0 || a.sectionIndex === undefined);
-      }
-    });
+      // Find existing answer and update or add new one
+      const existingIndex = cleanAnswers.findIndex(a => {
+        if (test.sections && test.sections.length > 0) {
+          return a.sectionIndex === sIdx && a.questionIndex === qIdx;
+        } else {
+          return a.questionIndex === qIdx && (a.sectionIndex === 0 || a.sectionIndex === undefined);
+        }
+      });
 
-    if (existingIndex !== -1) {
-      cleanAnswers[existingIndex] = answerObj;
-      console.log('Updated existing answer:', answerObj, 'at index:', existingIndex);
-    } else {
-      cleanAnswers.push(answerObj);
-      console.log('Added new answer:', answerObj);
+      if (existingIndex !== -1) {
+        cleanAnswers[existingIndex] = answerObj;
+        console.log('Updated existing answer:', answerObj, 'at index:', existingIndex);
+      } else {
+        cleanAnswers.push(answerObj);
+        console.log('Added new answer:', answerObj);
+      }
+
+      console.log('All answers after change:', cleanAnswers);
+      console.log('🔥 ANSWER CHANGED:', {
+        originalIndices: { sectionIndex, questionIndex, optionIndex: selectedOption }, // Use selectedOption here
+        convertedIndices: { sIdx, qIdx, oIdx: selectedOption }, // Use selectedOption here
+        answerObj,
+        totalAnswers: cleanAnswers.length
+      });
+
+      setAnswers(cleanAnswers);
+
+      // Force immediate save
+      saveProgress();
+
+      // Delayed save
+      setTimeout(() => {
+        console.log('🔄 Delayed save triggered for answer:', answerObj);
+        if (started && studentEmail && test) {
+          axios.post(`${API_URL}/api/progress/save`, {
+            studentEmail,
+            studentName,
+            rollNumber,
+            testId: test._id,
+            currentSection,
+            currentQuestion,
+            answers: cleanAnswers,
+            codingAnswers, // 🆕 Include coding answers
+            timeSpent
+          }).then(() => {
+            console.log('✅ Delayed save completed');
+          }).catch(err => {
+            console.error('❌ Delayed save failed:', err);
+          });
+        }
+      }, 1000);
+
+    } catch (err) {
+      console.error('❌ Error in handleAnswerChange:', err);
     }
+<<<<<<< HEAD
 
     console.log('All answers after change:', cleanAnswers);
     console.log('🔥 ANSWER CHANGED:', {
@@ -476,6 +525,8 @@ const TestPage = () => {
         });
       }
     }, 1000);
+=======
+>>>>>>> 4448852 (Added multiple questions type and merge upload functions)
   };
 
   // 🆕 Handle coding answer changes
@@ -490,8 +541,8 @@ const TestPage = () => {
     };
 
     const cleanAnswers = codingAnswers.filter(a => a && a.hasOwnProperty('codingQuestionIndex'));
-    
-    const existingIndex = cleanAnswers.findIndex(a => 
+
+    const existingIndex = cleanAnswers.findIndex(a =>
       a.sectionIndex === sIdx && a.codingQuestionIndex === cqIdx
     );
 
@@ -502,7 +553,7 @@ const TestPage = () => {
     }
 
     setCodingAnswers(cleanAnswers);
-    
+
     // Auto-save coding answers
     if (started && studentEmail && test) {
       setTimeout(() => {
@@ -570,12 +621,12 @@ const TestPage = () => {
   };
 
   const handleSubmit = async () => {
-    if(!started) return; // Prevent submitting before starting or after time is up from another tab
-    
+    if (!started) return; // Prevent submitting before starting or after time is up from another tab
+
     try {
       // Get warnings from sessionStorage
       const warnings = JSON.parse(sessionStorage.getItem('testWarnings') || '[]');
-      
+
       const payload = {
         studentName,
         studentEmail,
@@ -589,16 +640,16 @@ const TestPage = () => {
         warnings // Include warnings collected during test
       };
       const response = await axios.post(`${API_URL}/api/results/submit`, payload);
-      
+
       // Clear warnings from sessionStorage
       sessionStorage.removeItem('testWarnings');
-      
+
       // Mark test as completed
       await axios.post(`${API_URL}/api/progress/complete`, {
         studentEmail,
         testId: test._id
       });
-      
+
       setScore(response.data.data);
       setSubmitted(true);
       setStarted(false); // Stop timer and interactions
@@ -609,35 +660,35 @@ const TestPage = () => {
 
   const navigateToSection = (sectionIndex) => {
     if (!test.sections) return;
-    
+
     setCurrentSection(sectionIndex);
     setCurrentQuestion(0);
     setCurrentCodingQuestion(0);
-    
+
     // Mark section as viewed
     setViewedSections(prev => new Set(prev).add(sectionIndex));
-    
+
     // Auto-switch mode based on available questions in new section
     const newSectionData = test.sections[sectionIndex];
     const hasMCQ = newSectionData.questions && newSectionData.questions.length > 0;
     const hasCoding = newSectionData.codingQuestions && newSectionData.codingQuestions.length > 0;
-    
+
     if (!hasMCQ && hasCoding) {
       setQuestionMode('coding');
     } else if (hasMCQ) {
       setQuestionMode('mcq');
     }
-    
+
     setShowSectionPreview(false);
   };
 
   const navigateSection = (direction) => {
     if (!test.sections) return;
-    
-    const newSection = direction === 'next' 
+
+    const newSection = direction === 'next'
       ? Math.min(currentSection + 1, test.sections.length - 1)
       : Math.max(currentSection - 1, 0);
-    
+
     // Check if we've already viewed this section
     if (viewedSections.has(newSection)) {
       // Already viewed, navigate directly
@@ -652,11 +703,11 @@ const TestPage = () => {
   const navigateQuestion = (direction) => {
     const currentSectionData = test.sections ? test.sections[currentSection] : null;
     const maxQuestions = currentSectionData ? currentSectionData.questions.length : test.questions.length;
-    
+
     const newQuestion = direction === 'next'
       ? Math.min(currentQuestion + 1, maxQuestions - 1)
       : Math.max(currentQuestion - 1, 0);
-    
+
     setCurrentQuestion(newQuestion);
   };
 
@@ -670,10 +721,13 @@ const TestPage = () => {
   if (!test) return <p className="text-center mt-8">Loading test...</p>;
 
   if (submitted) {
-    const shouldShowScore = score.showScoreToStudents !== false; // Default to true for backward compatibility
+    // Check if score object has the flag (from submission response) or fall back to test object
+    const shouldShowScore = score.showScoreToStudents !== undefined
+      ? score.showScoreToStudents
+      : (test.showScoreToStudents !== undefined ? test.showScoreToStudents : false);
     const percentage = score.totalMarks > 0 ? Math.round((score.score / score.totalMarks) * 100) : 0;
     const isPassed = percentage >= 50; // Consider 50% as passing
-    
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
         <div className="max-w-2xl mx-auto">
@@ -796,7 +850,7 @@ const TestPage = () => {
                 </h2>
               </div>
               <p className={`text-sm ${isPassed ? 'text-green-600' : 'text-yellow-600'}`}>
-                {isPassed 
+                {isPassed
                   ? 'You have successfully passed the test!'
                   : 'Your test has been submitted successfully.'}
               </p>
@@ -812,12 +866,12 @@ const TestPage = () => {
                   <div className="relative w-32 h-32">
                     <svg className="w-32 h-32 transform -rotate-90">
                       <circle cx="64" cy="64" r="60" fill="none" stroke="#e5e7eb" strokeWidth="8" />
-                      <circle 
-                        cx="64" 
-                        cy="64" 
-                        r="60" 
-                        fill="none" 
-                        stroke={isPassed ? '#10b981' : '#f59e0b'} 
+                      <circle
+                        cx="64"
+                        cy="64"
+                        r="60"
+                        fill="none"
+                        stroke={isPassed ? '#10b981' : '#f59e0b'}
                         strokeWidth="8"
                         strokeDasharray={`${(percentage / 100) * 376.99} 376.99`}
                         strokeLinecap="round"
@@ -831,11 +885,10 @@ const TestPage = () => {
                   <div>
                     <p className="text-gray-600 mb-2">Marks Obtained</p>
                     <p className="text-4xl font-bold text-blue-600 mb-4">{score.score}/{score.totalMarks}</p>
-                    <p className={`text-sm font-semibold px-3 py-1 rounded-full inline-block ${
-                      isPassed 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}>
+                    <p className={`text-sm font-semibold px-3 py-1 rounded-full inline-block ${isPassed
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-yellow-100 text-yellow-700'
+                      }`}>
                       {isPassed ? 'PASSED' : 'SUBMITTED'}
                     </p>
                   </div>
@@ -934,13 +987,13 @@ const TestPage = () => {
           )}
         </div>
         <div className="flex space-x-4">
-          <button 
+          <button
             onClick={handleResumeTest}
             className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
           >
             Resume Test
           </button>
-          <button 
+          <button
             onClick={handleStartFresh}
             className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
           >
@@ -958,30 +1011,30 @@ const TestPage = () => {
         <p className="text-gray-600 mb-6">{test.description}</p>
         <div className="mb-4">
           <label className="block text-gray-700 mb-2">Your Name</label>
-          <input 
-            type="text" 
-            value={studentName} 
-            onChange={(e) => setStudentName(e.target.value)} 
-            className="w-full p-2 border rounded" 
+          <input
+            type="text"
+            value={studentName}
+            onChange={(e) => setStudentName(e.target.value)}
+            className="w-full p-2 border rounded"
           />
         </div>
         <div className="mb-4">
           <label className="block text-gray-700 mb-2">Email Address</label>
-          <input 
-            type="email" 
-            value={studentEmail} 
-            onChange={(e) => setStudentEmail(e.target.value)} 
-            className="w-full p-2 border rounded" 
+          <input
+            type="email"
+            value={studentEmail}
+            onChange={(e) => setStudentEmail(e.target.value)}
+            className="w-full p-2 border rounded"
             placeholder="your.email@example.com"
           />
         </div>
         <div className="mb-6">
           <label className="block text-gray-700 mb-2">Roll Number</label>
-          <input 
-            type="text" 
-            value={rollNumber} 
-            onChange={(e) => setRollNumber(e.target.value)} 
-            className="w-full p-2 border rounded" 
+          <input
+            type="text"
+            value={rollNumber}
+            onChange={(e) => setRollNumber(e.target.value)}
+            className="w-full p-2 border rounded"
           />
         </div>
         {test.allowResume && (
@@ -991,14 +1044,14 @@ const TestPage = () => {
             </p>
           </div>
         )}
-        <button 
+        <button
           onClick={() => {
             if (studentName.trim() && studentEmail.trim() && rollNumber.trim()) {
               setShowInstructions(true);
             } else {
               alert('Please enter your name, email, and roll number.');
             }
-          }} 
+          }}
           className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
         >
           Continue
@@ -1076,7 +1129,7 @@ const TestPage = () => {
     const hasMCQ = previewSectionData.questions && previewSectionData.questions.length > 0;
     const hasCoding = previewSectionData.codingQuestions && previewSectionData.codingQuestions.length > 0;
     const totalQuestions = (hasMCQ ? previewSectionData.questions.length : 0) + (hasCoding ? previewSectionData.codingQuestions.length : 0);
-    
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="bg-white p-8 rounded-lg shadow-lg max-w-2xl w-full">
@@ -1084,7 +1137,7 @@ const TestPage = () => {
           <h2 className="text-2xl font-semibold mb-6 text-blue-600">
             Section {previewSectionIndex + 1} of {test.sections.length}
           </h2>
-          
+
           <div className="mb-6">
             <h3 className="text-xl font-bold mb-3">{previewSectionData.sectionTitle}</h3>
             {previewSectionData.sectionDescription && (
@@ -1133,11 +1186,11 @@ const TestPage = () => {
     const isLastSection = currentSection === test.sections.length - 1;
     const isFirstQuestion = currentQuestion === 0;
     const isFirstSection = currentSection === 0;
-    
+
     // Get current answer for this question - improved logic
     const currentAnswer = answers.find(a => {
       if (!a) return false;
-      
+
       // For sectioned tests, match both sectionIndex and questionIndex
       if (test.sections && test.sections.length > 0) {
         return a.sectionIndex === currentSection && a.questionIndex === currentQuestion;
@@ -1146,14 +1199,14 @@ const TestPage = () => {
         return a.questionIndex === currentQuestion;
       }
     });
-    
+
     console.log('🔍 SECTION RENDER DEBUG:', {
       currentSection,
       currentQuestion,
       totalAnswers: answers.length,
       currentAnswer: currentAnswer,
       lookingFor: `section ${currentSection}, question ${currentQuestion}`,
-      
+
       // Debug exact match logic
       answersDetailed: answers.map((a, idx) => ({
         index: idx,
@@ -1176,21 +1229,21 @@ const TestPage = () => {
     const hasMCQ = currentSectionData.questions && currentSectionData.questions.length > 0;
     const hasCoding = currentSectionData.codingQuestions && currentSectionData.codingQuestions.length > 0;
     const totalQuestions = (hasMCQ ? currentSectionData.questions.length : 0) + (hasCoding ? currentSectionData.codingQuestions.length : 0);
-    
+
     // Get current coding answer
-    const currentCodingAnswer = codingAnswers.find(a => 
+    const currentCodingAnswer = codingAnswers.find(a =>
       a && a.sectionIndex === currentSection && a.codingQuestionIndex === currentCodingQuestion
     );
     const currentCodingQuestionData = hasCoding ? currentSectionData.codingQuestions[currentCodingQuestion] : null;
 
     return (
       <div className="min-h-screen w-full px-6 py-6">
-        <Proctoring 
+        <Proctoring
           maxWarnings={test.maxWarnings || 6}
           onMaxWarnings={() => {
             console.warn("Maximum warnings reached, auto-submitting test...");
             handleSubmit();
-          }} 
+          }}
         />
         <div className="mb-6 border-b pb-4">
           <div className="mb-4">
@@ -1210,7 +1263,7 @@ const TestPage = () => {
             <div className="w-px h-8 bg-gray-300"></div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {questionMode === 'mcq' 
+                {questionMode === 'mcq'
                   ? `${currentQuestion + 1}/${hasMCQ ? currentSectionData.questions.length : 0}`
                   : `${currentCodingQuestion + 1}/${hasCoding ? currentSectionData.codingQuestions.length : 0}`
                 }
@@ -1230,11 +1283,10 @@ const TestPage = () => {
                 setQuestionMode('mcq');
                 setCurrentQuestion(0);
               }}
-              className={`px-4 py-2 font-medium transition-colors ${
-                questionMode === 'mcq'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`px-4 py-2 font-medium transition-colors ${questionMode === 'mcq'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               Multiple Choice ({hasMCQ ? currentSectionData.questions.length : 0})
             </button>
@@ -1243,11 +1295,10 @@ const TestPage = () => {
                 setQuestionMode('coding');
                 setCurrentCodingQuestion(0);
               }}
-              className={`px-4 py-2 font-medium transition-colors ${
-                questionMode === 'coding'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`px-4 py-2 font-medium transition-colors ${questionMode === 'coding'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               Coding Questions ({hasCoding ? currentSectionData.codingQuestions.length : 0})
             </button>
@@ -1259,19 +1310,19 @@ const TestPage = () => {
           <div className="mb-8 flex gap-6 h-[calc(100vh-300px)]">
             <div className="flex-1 bg-gray-50 p-8 rounded-lg border border-gray-200 overflow-y-auto">
               <h3 className="text-sm font-bold text-gray-600 uppercase mb-4 sticky pt-0 bg-gray-50 py-2">Question</h3>
-              
+
               {/* Image-based question image */}
               {currentQuestionData.questionType === 'image-based' && currentQuestionData.imageUrl && (
                 <div className="mb-4">
-                  <img 
-                    src={currentQuestionData.imageUrl} 
-                    alt="Question" 
+                  <img
+                    src={currentQuestionData.imageUrl}
+                    alt="Question"
                     className="max-w-full h-auto rounded-lg border border-gray-300"
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 </div>
               )}
-              
+
               <p className="text-lg font-semibold text-gray-800">
                 {currentQuestion + 1}. {currentQuestionData.questionText}
               </p>
@@ -1280,7 +1331,7 @@ const TestPage = () => {
               <h3 className="text-sm font-bold text-gray-600 uppercase mb-4 sticky top-0 bg-white py-2">
                 {currentQuestionData.questionType === 'fill-blank' ? 'Answer' : currentQuestionData.questionType === 'descriptive' ? 'Your Answer' : 'Options'}
               </h3>
-              
+
               {/* Fill in the Blank */}
               {currentQuestionData.questionType === 'fill-blank' && (
                 <div>
@@ -1290,11 +1341,13 @@ const TestPage = () => {
                     onChange={(e) => handleAnswerChange(currentSection, currentQuestion, e.target.value)}
                     placeholder="Type your answer here"
                     className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                    autoComplete="off"
                   />
                   <p className="text-xs text-gray-500 mt-2">Case Sensitive: {currentQuestionData.caseSensitive ? 'Yes' : 'No'}</p>
                 </div>
               )}
 
+<<<<<<< HEAD
               {/* Descriptive / Essay */}
               {currentQuestionData.questionType === 'descriptive' && (
                 <div>
@@ -1347,8 +1400,39 @@ const TestPage = () => {
                       <span className="text-gray-700">{option}</span>
                     </label>
                   ))}
+=======
+              {/* Descriptive Answer */}
+              {currentQuestionData.questionType === 'descriptive' && (
+                <div>
+                  <textarea
+                    value={currentAnswer?.selectedOption || ''}
+                    onChange={(e) => handleAnswerChange(currentSection, currentQuestion, e.target.value)}
+                    placeholder="Type your detailed answer here..."
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none min-h-[150px]"
+                  />
+>>>>>>> 4448852 (Added multiple questions type and merge upload functions)
                 </div>
               )}
+
+              {/* MCQ, True/False, and Image-based options */}
+              {(currentQuestionData.questionType === 'mcq' ||
+                currentQuestionData.questionType === 'true-false' ||
+                currentQuestionData.questionType === 'image-based') && (
+                  <div className="space-y-2">
+                    {currentQuestionData.options && currentQuestionData.options.map((option, oIndex) => (
+                      <label key={oIndex} className="flex items-center p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition">
+                        <input
+                          type="radio"
+                          name={`section-${currentSection}-question-${currentQuestion}`}
+                          className="mr-3 w-4 h-4 flex-shrink-0"
+                          checked={currentAnswer && currentAnswer.selectedOption === oIndex}
+                          onChange={() => handleAnswerChange(currentSection, currentQuestion, oIndex)}
+                        />
+                        <span className="text-gray-700">{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
             </div>
           </div>
         )}
@@ -1391,7 +1475,7 @@ const TestPage = () => {
                     questionId={null} // Coding questions in tests don't use the separate Question model
                     starterCode={currentCodingQuestionData.starterCode || ""}
                     defaultLanguage={currentCodingAnswer?.language || currentCodingQuestionData.language || "javascript"}
-                    onCodeChange={(code, language) => 
+                    onCodeChange={(code, language) =>
                       handleCodingAnswerChange(currentSection, currentCodingQuestion, code, language)
                     }
                     initialCode={currentCodingAnswer?.sourceCode || currentCodingQuestionData.starterCode || ""}
@@ -1444,14 +1528,14 @@ const TestPage = () => {
           <div className="flex space-x-2">
             {questionMode === 'mcq' ? (
               <>
-                <button 
+                <button
                   onClick={() => navigateQuestion('prev')}
                   disabled={isFirstQuestion && isFirstSection}
                   className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
-                <button 
+                <button
                   onClick={() => navigateQuestion('next')}
                   disabled={isLastQuestion && isLastSection}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1461,14 +1545,14 @@ const TestPage = () => {
               </>
             ) : (
               <>
-                <button 
+                <button
                   onClick={() => setCurrentCodingQuestion(Math.max(0, currentCodingQuestion - 1))}
                   disabled={currentCodingQuestion === 0}
                   className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
-                <button 
+                <button
                   onClick={() => setCurrentCodingQuestion(Math.min((hasCoding ? currentSectionData.codingQuestions.length - 1 : 0), currentCodingQuestion + 1))}
                   disabled={currentCodingQuestion >= (hasCoding ? currentSectionData.codingQuestions.length - 1 : 0)}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1481,15 +1565,15 @@ const TestPage = () => {
 
           <div className="flex space-x-2">
             {!isLastSection && (
-              <button 
+              <button
                 onClick={() => navigateSection('next')}
                 className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
               >
                 Next Section
               </button>
             )}
-            <button 
-              onClick={handleSubmit} 
+            <button
+              onClick={handleSubmit}
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold"
             >
               Submit Test
@@ -1502,19 +1586,29 @@ const TestPage = () => {
           <div className="flex justify-between text-sm text-gray-600 mb-2">
             <span>Overall Progress</span>
             <span>
+<<<<<<< HEAD
               {answers.filter(a => a).length + codingAnswers.filter(a => a).length + descriptiveAnswers.filter(a => a && a.answerText).length} / {
                 test.sections.reduce((sum, section) => 
+=======
+              {answers.filter(a => a).length + codingAnswers.filter(a => a).length} / {
+                test.sections.reduce((sum, section) =>
+>>>>>>> 4448852 (Added multiple questions type and merge upload functions)
                   sum + section.questions.length + (section.codingQuestions?.length || 0), 0
                 )
               } answered
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{
+<<<<<<< HEAD
                 width: `${((answers.filter(a => a).length + codingAnswers.filter(a => a).length + descriptiveAnswers.filter(a => a && a.answerText).length) / 
                   test.sections.reduce((sum, section) => 
+=======
+                width: `${((answers.filter(a => a).length + codingAnswers.filter(a => a).length) /
+                  test.sections.reduce((sum, section) =>
+>>>>>>> 4448852 (Added multiple questions type and merge upload functions)
                     sum + section.questions.length + (section.codingQuestions?.length || 0), 0
                   )) * 100}%`
               }}
@@ -1537,7 +1631,7 @@ const TestPage = () => {
           if (!a) return false;
           return a.questionIndex === qIndex && (a.sectionIndex === undefined || a.sectionIndex === 0);
         });
-        
+
         console.log(`🔍 TRADITIONAL TEST - Question ${qIndex}:`, {
           questionIndex: qIndex,
           currentAnswer: currentAnswer,
@@ -1555,7 +1649,7 @@ const TestPage = () => {
             }
           }))
         });
-        
+
         return (
           <div key={qIndex} className="mb-8">
             <p className="text-xl font-semibold mb-4">{qIndex + 1}. {q.questionText}</p>

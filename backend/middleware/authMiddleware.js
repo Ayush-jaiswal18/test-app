@@ -27,3 +27,12 @@ exports.protect = async (req, res, next) => {
     return res.status(401).json({ success: false, message: 'Not authorized to access this route' });
   }
 };
+
+// Admin middleware
+exports.admin = (req, res, next) => {
+  if (req.admin) {
+    next();
+  } else {
+    res.status(401).json({ success: false, message: 'Not authorized as an admin' });
+  }
+};

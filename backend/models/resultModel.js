@@ -38,7 +38,8 @@ const resultSchema = new mongoose.Schema({
     },
     questionIndex: Number,
     originalQuestionIndex: Number, // Original index for randomized questions
-    selectedOption: mongoose.Schema.Types.Mixed, // Can be Number or String for fill-blank
+    originalQuestionIndex: Number, // Original index for randomized questions
+    selectedOption: mongoose.Schema.Types.Mixed, // Can be Number (MCQ/TF), String (Fill-Blank/Descriptive), or Object (File Upload)
   }],
   // Descriptive question answers
   descriptiveAnswers: [{

@@ -16,14 +16,14 @@ exports.submitTest = async (req, res) => {
     }
 
     // Check if this student has already submitted this test
-    const existingResult = await Result.findOne({ 
-      test: testId, 
-      studentEmail: studentEmail.toLowerCase() 
+    const existingResult = await Result.findOne({
+      test: testId,
+      studentEmail: studentEmail.toLowerCase()
     });
 
     if (existingResult) {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         message: 'You have already submitted this test. Each student can only submit once.',
         submittedAt: existingResult.createdAt
       });
@@ -39,12 +39,12 @@ exports.submitTest = async (req, res) => {
         // Score MCQ questions
         section.questions.forEach((question, questionIndex) => {
           totalMarks += (question.points || 1);
-          
+
           // Find answer by displayed question index
-          const studentAnswer = answers.find(a => 
+          const studentAnswer = answers.find(a =>
             a.sectionIndex === sectionIndex && a.questionIndex === questionIndex
           );
-          
+
           if (studentAnswer) {
             // Handle different question types
             if (question.questionType === 'descriptive') {
@@ -54,22 +54,22 @@ exports.submitTest = async (req, res) => {
               // For fill-in-the-blank, check if answer is in acceptableAnswers
               const userAnswer = studentAnswer.selectedOption;
               const acceptableAnswers = question.acceptableAnswers || [];
-              
+
               let isCorrect = false;
               if (question.caseSensitive) {
                 isCorrect = acceptableAnswers.includes(userAnswer);
               } else {
-                isCorrect = acceptableAnswers.some(ans => 
+                isCorrect = acceptableAnswers.some(ans =>
                   ans.toLowerCase() === userAnswer.toLowerCase()
                 );
               }
-              
+
               if (isCorrect) {
                 score += (question.points || 1);
               }
-            } else if (question.questionType === 'true-false' || 
-                       question.questionType === 'mcq' || 
-                       question.questionType === 'image-based') {
+            } else if (question.questionType === 'true-false' ||
+              question.questionType === 'mcq' ||
+              question.questionType === 'image-based') {
               // For multiple choice, true/false, and image-based questions
               if (studentAnswer.selectedOption === question.correctAnswer) {
                 score += (question.points || 1);
@@ -77,15 +77,15 @@ exports.submitTest = async (req, res) => {
             }
           }
         });
-        
+
         // Score coding questions (if test cases exist, evaluate them; otherwise just save the code)
         if (section.codingQuestions && section.codingQuestions.length > 0) {
           section.codingQuestions.forEach((codingQuestion, codingQuestionIndex) => {
             totalMarks += (codingQuestion.testCases?.length || 1); // Weight by test cases or default to 1
-            const studentCodingAnswer = codingAnswers?.find(a => 
+            const studentCodingAnswer = codingAnswers?.find(a =>
               a.sectionIndex === sectionIndex && a.codingQuestionIndex === codingQuestionIndex
             );
-            
+
             // For now, coding questions are saved but not auto-evaluated during test submission
             // They can be evaluated later by admin or through a separate endpoint
             // If test cases exist and we want to evaluate, we'd need to call the code execution service
@@ -101,7 +101,7 @@ exports.submitTest = async (req, res) => {
       test.questions.forEach((question, index) => {
         totalMarks += (question.points || 1);
         const studentAnswer = answers.find(a => a.questionIndex === index);
-        
+
         if (studentAnswer) {
           // Handle different question types
           if (question.questionType === 'descriptive') {
@@ -109,22 +109,22 @@ exports.submitTest = async (req, res) => {
           } else if (question.questionType === 'fill-blank') {
             const userAnswer = studentAnswer.selectedOption;
             const acceptableAnswers = question.acceptableAnswers || [];
-            
+
             let isCorrect = false;
             if (question.caseSensitive) {
               isCorrect = acceptableAnswers.includes(userAnswer);
             } else {
-              isCorrect = acceptableAnswers.some(ans => 
+              isCorrect = acceptableAnswers.some(ans =>
                 ans.toLowerCase() === userAnswer.toLowerCase()
               );
             }
-            
+
             if (isCorrect) {
               score += (question.points || 1);
             }
-          } else if (question.questionType === 'true-false' || 
-                     question.questionType === 'mcq' || 
-                     question.questionType === 'image-based') {
+          } else if (question.questionType === 'true-false' ||
+            question.questionType === 'mcq' ||
+            question.questionType === 'image-based') {
             if (studentAnswer.selectedOption === question.correctAnswer) {
               score += (question.points || 1);
             }
@@ -163,6 +163,7 @@ exports.submitTest = async (req, res) => {
         message: 'Test submitted successfully!',
         score: result.score,
         totalMarks: result.totalMarks,
+        showScoreToStudents: test.showScoreToStudents // Send this flag to frontend
       },
     });
   } catch (error) {
@@ -178,9 +179,9 @@ exports.checkSubmissionStatus = async (req, res) => {
   const { testId, email } = req.params;
 
   try {
-    const existingResult = await Result.findOne({ 
-      test: testId, 
-      studentEmail: email.toLowerCase() 
+    const existingResult = await Result.findOne({
+      test: testId,
+      studentEmail: email.toLowerCase()
     });
 
     if (existingResult) {
@@ -202,10 +203,10 @@ exports.checkSubmissionStatus = async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error checking submission status', 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Error checking submission status',
+      error: error.message
     });
   }
 };
@@ -214,62 +215,63 @@ exports.checkSubmissionStatus = async (req, res) => {
 // @route   GET /api/results/:testId
 // @access  Private (Admin)
 exports.getResultsByTestId = async (req, res) => {
-    try {
-        const test = await Test.findById(req.params.testId);
-        if(!test){
-            return res.status(404).json({ success: false, message: 'Test not found' });
-        }
-
-        // Ensure the admin requesting results is the one who created the test
-        if (test.createdBy.toString() !== req.admin._id.toString()) {
-            return res.status(401).json({ success: false, message: 'Not authorized to view these results' });
-        }
-
-        const results = await Result.find({ test: req.params.testId });
-        res.status(200).json({ success: true, count: results.length, data: results });
-
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server Error' });
+  try {
+    const test = await Test.findById(req.params.testId);
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found' });
     }
+
+    // Ensure the admin requesting results is the one who created the test
+    if (test.createdBy.toString() !== req.admin._id.toString()) {
+      return res.status(401).json({ success: false, message: 'Not authorized to view these results' });
+    }
+
+    const results = await Result.find({ test: req.params.testId });
+    res.status(200).json({ success: true, count: results.length, data: results });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
 };
 
 // @desc    Get a single result with full details
 // @route   GET /api/results/:testId/:resultId
 // @access  Private (Admin)
 exports.getResultById = async (req, res) => {
-    try {
-        const { testId, resultId } = req.params;
-        
-        const test = await Test.findById(testId);
-        if(!test){
-            return res.status(404).json({ success: false, message: 'Test not found' });
-        }
+  try {
+    const { testId, resultId } = req.params;
 
-        // Ensure the admin requesting results is the one who created the test
-        if (test.createdBy.toString() !== req.admin._id.toString()) {
-            return res.status(401).json({ success: false, message: 'Not authorized to view these results' });
-        }
-
-        const result = await Result.findById(resultId).populate('test');
-        if(!result){
-            return res.status(404).json({ success: false, message: 'Result not found' });
-        }
-
-        res.status(200).json({ success: true, data: result });
-
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+    const test = await Test.findById(testId);
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found' });
     }
+
+    // Ensure the admin requesting results is the one who created the test
+    if (test.createdBy.toString() !== req.admin._id.toString()) {
+      return res.status(401).json({ success: false, message: 'Not authorized to view these results' });
+    }
+
+    const result = await Result.findById(resultId).populate('test');
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'Result not found' });
+    }
+
+    res.status(200).json({ success: true, data: result });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+  }
 };
 
 // @desc    Evaluate a coding question submission
 // @route   POST /api/results/:resultId/evaluate-coding
 // @access  Private (Admin)
 exports.evaluateCodingQuestion = async (req, res) => {
-    try {
-        const { resultId } = req.params;
-        const { sectionIndex, codingQuestionIndex, score, feedback } = req.body;
+  try {
+    const { resultId } = req.params;
+    const { sectionIndex, codingQuestionIndex, score, feedback } = req.body;
 
+<<<<<<< HEAD
         const result = await Result.findById(resultId);
         if(!result){
             return res.status(404).json({ success: false, message: 'Result not found' });
@@ -360,7 +362,78 @@ exports.evaluateCodingQuestion = async (req, res) => {
 
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+=======
+    const result = await Result.findById(resultId);
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'Result not found' });
+>>>>>>> 4448852 (Added multiple questions type and merge upload functions)
     }
+
+    // Find the coding answer
+    const codingAnswer = result.codingAnswers.find(a =>
+      a.sectionIndex === sectionIndex && a.codingQuestionIndex === codingQuestionIndex
+    );
+
+    if (!codingAnswer) {
+      return res.status(404).json({ success: false, message: 'Coding answer not found' });
+    }
+
+    // Update the score
+    codingAnswer.score = score || 0;
+    if (feedback) codingAnswer.feedback = feedback;
+
+    // Recalculate total score
+    const test = await Test.findById(result.test);
+    let newScore = 0;
+    let totalMarks = 0;
+
+    // Calculate MCQ score
+    if (test.sections && test.sections.length > 0) {
+      test.sections.forEach((section, sIdx) => {
+        section.questions.forEach((question, qIdx) => {
+          totalMarks++;
+          const studentAnswer = result.answers.find(a =>
+            a.sectionIndex === sIdx && a.questionIndex === qIdx
+          );
+          if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
+            newScore++;
+          }
+        });
+      });
+    } else {
+      totalMarks = test.questions.length;
+      test.questions.forEach((question, index) => {
+        const studentAnswer = result.answers.find(a => a.questionIndex === index);
+        if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
+          newScore++;
+        }
+      });
+    }
+
+    // Add coding question scores
+    result.codingAnswers.forEach(ca => {
+      const section = test.sections?.[ca.sectionIndex];
+      const codingQuestion = section?.codingQuestions?.[ca.codingQuestionIndex];
+      if (codingQuestion) {
+        const maxScore = codingQuestion.testCases?.reduce((sum, tc) => sum + (tc.weight || 1), 0) || 10;
+        totalMarks += maxScore;
+        newScore += (ca.score || 0);
+      }
+    });
+
+    result.score = newScore;
+    result.totalMarks = totalMarks;
+    await result.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Coding question evaluated successfully',
+      data: result
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+  }
 };
 
 // @desc    Evaluate a descriptive question answer

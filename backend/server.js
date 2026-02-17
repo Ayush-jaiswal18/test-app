@@ -44,7 +44,13 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/tests', require('./routes/testRoutes'));
 app.use('/api/results', require('./routes/resultRoutes'));
 app.use('/api/progress', require('./routes/progressRoutes'));
+app.use('/api/progress', require('./routes/progressRoutes'));
 app.use('/api/code', require('./routes/code'));
+app.use('/api/upload', require('./routes/uploadRoutes'));
+
+// Serve uploads folder statically
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Proctoring endpoint
 app.post("/api/report", (req, res) => {

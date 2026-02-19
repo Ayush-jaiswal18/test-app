@@ -13,19 +13,24 @@ import DashboardPage from './components/DashboardPage.jsx';
 import CreateTestPage from './components/CreateTestPage.jsx';
 import TestPage from './components/TestPage.jsx';
 import ResultsPage from './components/ResultsPage.jsx';
+import StudentResultPage from './components/StudentResultPage.jsx';
 import PrivateRoute from './components/PrivateRoute.jsx';
 import Navbar from './components/Navbar.jsx';
 
 function App() {
   const location = useLocation();
 
-  const hideNavbar = location.pathname.startsWith('/test');
+  const hideNavbar = location.pathname.startsWith('/test') || location.pathname.startsWith('/result/');
+
+  const fullScreenLayout = location.pathname.startsWith('/result/');
 
   const centerLayout =
-    location.pathname.startsWith('/test') ||
-    location.pathname.startsWith('/create-test') ||
-    location.pathname.startsWith('/edit-test') ||
-    location.pathname.startsWith('/admin');
+    !fullScreenLayout && (
+      location.pathname.startsWith('/test') ||
+      location.pathname.startsWith('/create-test') ||
+      location.pathname.startsWith('/edit-test') ||
+      location.pathname.startsWith('/admin')
+    );
 
   return (
     <>
@@ -33,7 +38,9 @@ function App() {
 
       <main
         className={
-          centerLayout
+          fullScreenLayout
+            ? ''
+            : centerLayout
             ? 'min-h-screen flex justify-center items-center bg-gray-100 px-4'
             : 'container mx-auto px-4 py-8'
         }
@@ -45,6 +52,7 @@ function App() {
 
           <Route path="/test/share/:shareLink" element={<TestPage />} />
           <Route path="/test/:testId" element={<TestPage />} />
+          <Route path="/result/student/:testId" element={<StudentResultPage />} />
 
           {/* ===== PRIVATE ADMIN ROUTES ===== */}
           <Route

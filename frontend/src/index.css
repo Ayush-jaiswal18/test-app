@@ -17,6 +17,10 @@
 		--color-btn-hover: #cc5500;
 	}
 
+	html, body {
+		@apply overflow-x-hidden;
+	}
+
 	body {
 		@apply bg-brand-soft text-brand-dark;
 		font-family: 'Poppins', system-ui, -apple-system, sans-serif;

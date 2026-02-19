@@ -1,11 +1,14 @@
 const express = require('express');
-const { submitTest, getResultsByTestId, checkSubmissionStatus, getResultById, evaluateCodingQuestion, evaluateDescriptiveQuestion } = require('../controllers/resultController');
+const { submitTest, getResultsByTestId, checkSubmissionStatus, getResultById, evaluateCodingQuestion, evaluateDescriptiveQuestion, getStudentResult } = require('../controllers/resultController');
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 // Public route for students to submit answers
 router.post('/submit', submitTest);
+
+// Public route for students to view their result via link
+router.post('/student/:testId', getStudentResult);
 
 // Public route to check if test has been submitted by email
 router.get('/check/:testId/:email', checkSubmissionStatus);

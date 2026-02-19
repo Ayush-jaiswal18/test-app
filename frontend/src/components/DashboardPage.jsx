@@ -134,7 +134,14 @@ const DashboardPage = () => {
                         : shareableLink)}
                       className="w-full text-center bg-slate-100 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-200 transition"
                     >
-                      Copy Link
+                      Copy Test Link
+                    </button>
+
+                    <button
+                      onClick={() => copyToClipboard(`${window.location.origin}/result/student/${test._id}`)}
+                      className="w-full text-center bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-200 transition"
+                    >
+                      Copy Result Link
                     </button>
 
                     <Link to={`/results/${test._id}`} className="block w-full text-center bg-brand-primary/10 text-brand-primary px-4 py-2 rounded-lg hover:bg-brand-primary/20 transition">

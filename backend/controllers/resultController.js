@@ -172,6 +172,129 @@ exports.submitTest = async (req, res) => {
 };
 
 
+// @desc    Get student result by roll number and email (public - for result link)
+// @route   POST /api/results/student/:testId
+// @access  Public
+exports.getStudentResult = async (req, res) => {
+  const { testId } = req.params;
+  const { rollNumber, studentEmail } = req.body;
+
+  if (!rollNumber || !studentEmail) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide both roll number and email'
+    });
+  }
+
+  try {
+    console.log(`[Student Result Lookup] testId=${testId}, rollNumber="${rollNumber.trim()}", email="${studentEmail.trim().toLowerCase()}"`);
+
+    const test = await Test.findById(testId);
+    if (!test) {
+      return res.status(404).json({ success: false, message: 'Test not found' });
+    }
+
+    // Case-insensitive match for rollNumber, exact lowercase match for email
+    const result = await Result.findOne({
+      test: testId,
+      rollNumber: { $regex: new RegExp(`^${rollNumber.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+      studentEmail: studentEmail.trim().toLowerCase()
+    });
+
+    if (!result) {
+      // Debug: check if the student exists with just the email or just the roll number
+      const byEmail = await Result.findOne({ test: testId, studentEmail: studentEmail.trim().toLowerCase() });
+      const byRoll = await Result.findOne({ test: testId, rollNumber: { $regex: new RegExp(`^${rollNumber.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });
+
+      let hint = '';
+      if (byEmail && !byRoll) {
+        hint = ' Your email was found but the roll number does not match.';
+      } else if (!byEmail && byRoll) {
+        hint = ' Your roll number was found but the email does not match.';
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: `No result found. Please check your roll number and email.${hint}`
+      });
+    }
+
+    // Build section-wise breakdown for sectioned tests
+    let sectionBreakdown = [];
+    if (test.sections && test.sections.length > 0) {
+      sectionBreakdown = test.sections.map((section, sIdx) => {
+        let sectionScore = 0;
+        let sectionTotal = 0;
+
+        section.questions.forEach((question, qIdx) => {
+          const points = question.points || 1;
+          sectionTotal += points;
+
+          const studentAnswer = result.answers.find(a =>
+            a.sectionIndex === sIdx && a.questionIndex === qIdx
+          );
+
+          if (question.questionType === 'descriptive') {
+            const descAnswer = result.descriptiveAnswers.find(a =>
+              a.sectionIndex === sIdx && a.questionIndex === qIdx
+            );
+            sectionScore += (descAnswer?.score || 0);
+          } else if (question.questionType === 'fill-blank') {
+            if (studentAnswer) {
+              const userAnswer = studentAnswer.selectedOption;
+              const acceptableAnswers = question.acceptableAnswers || [];
+              const isCorrect = question.caseSensitive
+                ? acceptableAnswers.includes(userAnswer)
+                : acceptableAnswers.some(ans => ans.toLowerCase() === (userAnswer || '').toLowerCase());
+              if (isCorrect) sectionScore += points;
+            }
+          } else {
+            if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
+              sectionScore += points;
+            }
+          }
+        });
+
+        // Add coding question scores
+        if (section.codingQuestions && section.codingQuestions.length > 0) {
+          section.codingQuestions.forEach((cq, cqIdx) => {
+            const maxScore = cq.testCases?.reduce((sum, tc) => sum + (tc.weight || 1), 0) || 10;
+            sectionTotal += maxScore;
+            const codingAnswer = result.codingAnswers?.find(a =>
+              a.sectionIndex === sIdx && a.codingQuestionIndex === cqIdx
+            );
+            sectionScore += (codingAnswer?.score || 0);
+          });
+        }
+
+        return {
+          sectionTitle: section.sectionTitle,
+          score: sectionScore,
+          totalMarks: sectionTotal
+        };
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        studentName: result.studentName,
+        studentEmail: result.studentEmail,
+        rollNumber: result.rollNumber,
+        score: result.score,
+        totalMarks: result.totalMarks,
+        timeSpent: result.timeSpent,
+        submittedAt: result.createdAt,
+        testTitle: test.title,
+        testDescription: test.description,
+        sectionBreakdown
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+  }
+};
+
 // @desc    Check if test has been submitted by email
 // @route   GET /api/results/check/:testId/:email
 // @access  Public

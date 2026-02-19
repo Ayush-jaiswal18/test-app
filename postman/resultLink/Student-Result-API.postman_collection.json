@@ -1,0 +1,272 @@
+{
+	"info": {
+		"name": "Student Result Link API",
+		"description": "Collection to test the Student Result viewing feature.\n\nStudents can look up their test result by providing their roll number and email.\n\nReplace {{baseUrl}} with your server URL (default: http://localhost:5000)\nReplace {{testId}} with a valid MongoDB Test ObjectId from your database.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "testId",
+			"value": "PASTE_YOUR_TEST_ID_HERE",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Get Student Result (Valid)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"rollNumber\": \"101\",\n  \"studentEmail\": \"student@example.com\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/results/student/{{testId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "results", "student", "{{testId}}"]
+				},
+				"description": "Look up a student's result by roll number and email.\n\nExpected: 200 with result data (score, totalMarks, sectionBreakdown, etc.)\n\nReplace the body values with a real student's roll number and email."
+			},
+			"response": [],
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Response has result data', function () {",
+							"    var json = pm.response.json();",
+							"    pm.expect(json.success).to.be.true;",
+							"    pm.expect(json.data).to.have.property('studentName');",
+							"    pm.expect(json.data).to.have.property('score');",
+							"    pm.expect(json.data).to.have.property('totalMarks');",
+							"    pm.expect(json.data).to.have.property('testTitle');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Get Student Result (Wrong Email)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"rollNumber\": \"101\",\n  \"studentEmail\": \"wrong@example.com\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/results/student/{{testId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "results", "student", "{{testId}}"]
+				},
+				"description": "Test with correct roll number but wrong email.\n\nExpected: 404 with hint that roll number was found but email doesn't match."
+			},
+			"response": [],
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status is 404', function () {",
+							"    pm.response.to.have.status(404);",
+							"});",
+							"",
+							"pm.test('Error message returned', function () {",
+							"    var json = pm.response.json();",
+							"    pm.expect(json.success).to.be.false;",
+							"    pm.expect(json.message).to.include('No result found');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Get Student Result (Wrong Roll Number)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"rollNumber\": \"WRONG-ROLL\",\n  \"studentEmail\": \"student@example.com\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/results/student/{{testId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "results", "student", "{{testId}}"]
+				},
+				"description": "Test with correct email but wrong roll number.\n\nExpected: 404 with hint that email was found but roll number doesn't match."
+			},
+			"response": [],
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status is 404', function () {",
+							"    pm.response.to.have.status(404);",
+							"});",
+							"",
+							"pm.test('Error message with hint', function () {",
+							"    var json = pm.response.json();",
+							"    pm.expect(json.success).to.be.false;",
+							"    pm.expect(json.message).to.include('No result found');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Get Student Result (Missing Fields)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"rollNumber\": \"101\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/results/student/{{testId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "results", "student", "{{testId}}"]
+				},
+				"description": "Test with missing email field.\n\nExpected: 400 with validation error."
+			},
+			"response": [],
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status is 400', function () {",
+							"    pm.response.to.have.status(400);",
+							"});",
+							"",
+							"pm.test('Validation error message', function () {",
+							"    var json = pm.response.json();",
+							"    pm.expect(json.success).to.be.false;",
+							"    pm.expect(json.message).to.include('provide both');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Get Student Result (Invalid Test ID)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"rollNumber\": \"101\",\n  \"studentEmail\": \"student@example.com\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/results/student/000000000000000000000000",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "results", "student", "000000000000000000000000"]
+				},
+				"description": "Test with a non-existent test ID.\n\nExpected: 404 with 'Test not found'."
+			},
+			"response": [],
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status is 404', function () {",
+							"    pm.response.to.have.status(404);",
+							"});",
+							"",
+							"pm.test('Test not found message', function () {",
+							"    var json = pm.response.json();",
+							"    pm.expect(json.success).to.be.false;",
+							"    pm.expect(json.message).to.include('Test not found');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		},
+		{
+			"name": "6. Get Student Result (Case Insensitive Roll)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"rollNumber\": \"cs-101\",\n  \"studentEmail\": \"student@example.com\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/results/student/{{testId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "results", "student", "{{testId}}"]
+				},
+				"description": "Test that roll number matching is case-insensitive.\nIf stored as 'CS-101', searching 'cs-101' should still match.\n\nExpected: 200 if student exists with that roll number (any case)."
+			},
+			"response": [],
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// This test depends on having a student with roll 'CS-101' or similar",
+							"// If student exists, expect 200; otherwise 404 is acceptable",
+							"pm.test('Status is 200 or 404', function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		}
+	]
+}

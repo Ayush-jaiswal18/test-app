@@ -133,6 +133,15 @@ const testSchema = new mongoose.Schema({
     type: Boolean,
     default: false, // Admin can decide if students see their scores
   },
+  // Test availability window (optional - backward compatible)
+  startTime: {
+    type: Date,
+    default: null,
+  },
+  endTime: {
+    type: Date,
+    default: null,
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,

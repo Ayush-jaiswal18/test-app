@@ -28,6 +28,7 @@ const TestPage = () => {
   const [showResumeDialog, setShowResumeDialog] = useState(false);
   const [savedProgress, setSavedProgress] = useState(null);
   const [error, setError] = useState('');
+  const [accessError, setAccessError] = useState(null); // 'not_started' | 'expired' | null; message from API when 403
   const [isResumed, setIsResumed] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const [agreedToInstructions, setAgreedToInstructions] = useState(false);
@@ -96,6 +97,8 @@ const TestPage = () => {
 
   useEffect(() => {
     const fetchTest = async () => {
+      setAccessError(null);
+      setError('');
       try {
         let response;
         if (shareLink) {
@@ -123,7 +126,12 @@ const TestPage = () => {
 
         setTimeLeft(testData.duration * 60);
       } catch (err) {
-        setError('Failed to load the test. The link may be invalid.');
+        if (err.response?.status === 403 && err.response?.data?.message) {
+          setAccessError(err.response.data.message);
+          setTest(null);
+        } else {
+          setError('Failed to load the test. The link may be invalid.');
+        }
       }
     };
     fetchTest();
@@ -682,6 +690,30 @@ const TestPage = () => {
   };
 
   if (error) return <p className="text-center mt-8 text-red-500">{error}</p>;
+  if (accessError) {
+    const isNotStarted = accessError.toLowerCase().includes('not started');
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${isNotStarted ? 'bg-amber-100' : 'bg-red-100'}`}>
+            {isNotStarted ? (
+              <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+          </div>
+          <h1 className={`text-xl font-bold mb-2 ${isNotStarted ? 'text-amber-800' : 'text-red-800'}`}>
+            {isNotStarted ? 'Test not started yet' : 'Test expired'}
+          </h1>
+          <p className="text-gray-600">{accessError}</p>
+        </div>
+      </div>
+    );
+  }
   if (!test) return <p className="text-center mt-8">Loading test...</p>;
 
   if (submitted) {
@@ -973,6 +1005,14 @@ const TestPage = () => {
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-lg mx-auto">
         <h1 className="text-3xl font-bold mb-2">{test.title}</h1>
         <p className="text-gray-600 mb-6">{test.description}</p>
+        {test.startTime && test.endTime && (
+          <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <p className="text-sm font-semibold text-slate-700 mb-1">Test availability window</p>
+            <p className="text-sm text-slate-600">
+              From {new Date(test.startTime).toLocaleString()} to {new Date(test.endTime).toLocaleString()}
+            </p>
+          </div>
+        )}
         <div className="mb-4">
           <label className="block text-gray-700 mb-2">Your Name</label>
           <input
@@ -1033,6 +1073,9 @@ const TestPage = () => {
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="space-y-3 text-gray-700">
             <p><strong>Duration:</strong> {test.duration} minutes</p>
+            {test.startTime && test.endTime && (
+              <p><strong>Availability:</strong> {new Date(test.startTime).toLocaleString()} – {new Date(test.endTime).toLocaleString()}</p>
+            )}
             <p><strong>Instructions:</strong></p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>Read each question carefully before answering.</li>

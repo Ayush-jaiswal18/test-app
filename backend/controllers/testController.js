@@ -3,6 +3,47 @@ const crypto = require('crypto');
 
 const SUPPORTED_LANGUAGES = ['javascript', 'python', 'cpp', 'java'];
 
+/**
+ * Validates startTime and endTime for test availability window.
+ * Returns { valid: boolean, message?: string }
+ */
+const validateAvailabilityWindow = (startTime, endTime, isCreate = false) => {
+  if (startTime == null && endTime == null) return { valid: true };
+  if (startTime == null || endTime == null) {
+    return { valid: false, message: 'Both startTime and endTime must be provided together, or both omitted.' };
+  }
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return { valid: false, message: 'Invalid startTime or endTime.' };
+  }
+  if (start >= end) {
+    return { valid: false, message: 'startTime must be before endTime.' };
+  }
+  if (isCreate && end <= new Date()) {
+    return { valid: false, message: 'endTime must be in the future when creating a test.' };
+  }
+  return { valid: true };
+};
+
+/**
+ * Checks if current time is within test availability window.
+ * Returns { allowed: boolean, statusCode: number, message: string }
+ */
+const checkTestAvailability = (test) => {
+  if (!test.startTime || !test.endTime) return { allowed: true };
+  const now = new Date();
+  const start = new Date(test.startTime);
+  const end = new Date(test.endTime);
+  if (now < start) {
+    return { allowed: false, statusCode: 403, message: 'Test has not started yet' };
+  }
+  if (now > end) {
+    return { allowed: false, statusCode: 403, message: 'Test has expired' };
+  }
+  return { allowed: true };
+};
+
 const normalizeCodingQuestion = (codingQuestion = {}) => {
   const sanitizedLanguage = SUPPORTED_LANGUAGES.includes(codingQuestion.language)
     ? codingQuestion.language
@@ -35,7 +76,7 @@ const normalizeSections = (sections = []) => {
 // @route   POST /api/tests
 // @access  Private (Admin)
 exports.createTest = async (req, res) => {
-  const { title, description, duration, questions, sections, allowResume, maxWarnings } = req.body;
+  const { title, description, duration, questions, sections, allowResume, maxWarnings, startTime, endTime } = req.body;
   
   try {
     // Validate required fields
@@ -69,6 +110,16 @@ exports.createTest = async (req, res) => {
       if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 20) {
         testData.maxWarnings = parsed;
       }
+    }
+
+    // Optional availability window
+    if (startTime != null || endTime != null) {
+      const validation = validateAvailabilityWindow(startTime, endTime, true);
+      if (!validation.valid) {
+        return res.status(400).json({ success: false, message: validation.message });
+      }
+      testData.startTime = new Date(startTime);
+      testData.endTime = new Date(endTime);
     }
 
     // Add questions or sections based on what's provided
@@ -144,6 +195,13 @@ exports.getTestById = async (req, res) => {
     if (!test) {
       return res.status(404).json({ success: false, message: 'Test not found' });
     }
+    const availability = checkTestAvailability(test);
+    if (!availability.allowed) {
+      return res.status(availability.statusCode).json({
+        success: false,
+        message: availability.message,
+      });
+    }
     // Optionally, you might want to remove correct answers before sending to student
     const testForStudent = { ...test.toObject() };
     testForStudent.questions.forEach(q => {
@@ -173,6 +231,18 @@ exports.updateTest = async (req, res) => {
     }
 
     const updatePayload = { ...req.body };
+    if (updatePayload.startTime != null || updatePayload.endTime != null) {
+      const validation = validateAvailabilityWindow(
+        updatePayload.startTime ?? test.startTime,
+        updatePayload.endTime ?? test.endTime,
+        false
+      );
+      if (!validation.valid) {
+        return res.status(400).json({ success: false, message: validation.message });
+      }
+      if (updatePayload.startTime != null) updatePayload.startTime = new Date(updatePayload.startTime);
+      if (updatePayload.endTime != null) updatePayload.endTime = new Date(updatePayload.endTime);
+    }
     if (updatePayload.sections && updatePayload.sections.length > 0) {
       updatePayload.sections = normalizeSections(updatePayload.sections);
     }
@@ -237,6 +307,13 @@ exports.getTestByShareLink = async (req, res) => {
     const test = await Test.findOne({ shareableLink: req.params.shareLink, isPublic: true });
     if (!test) {
       return res.status(404).json({ success: false, message: 'Test not found or link has expired' });
+    }
+    const availability = checkTestAvailability(test);
+    if (!availability.allowed) {
+      return res.status(availability.statusCode).json({
+        success: false,
+        message: availability.message,
+      });
     }
 
     // Helper function to shuffle array (Fisher-Yates algorithm)

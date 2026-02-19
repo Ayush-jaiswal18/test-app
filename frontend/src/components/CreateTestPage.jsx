@@ -22,6 +22,8 @@ const CreateTestPage = () => {
   const [allowResume, setAllowResume] = useState(true);
   const [maxWarnings, setMaxWarnings] = useState(6);
   const [showScoreToStudents, setShowScoreToStudents] = useState(false);
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
 
   const [sections, setSections] = useState([
     {
@@ -226,6 +228,8 @@ const CreateTestPage = () => {
           setMaxWarnings(testData.maxWarnings ?? 6);
           setShowScoreToStudents(testData.showScoreToStudents ?? false);
           setShareableLink(testData.shareableLink || '');
+          setStartTime(testData.startTime ? new Date(testData.startTime).toISOString().slice(0, 16) : '');
+          setEndTime(testData.endTime ? new Date(testData.endTime).toISOString().slice(0, 16) : '');
 
           if (testData.sections?.length > 0) {
             const sectionsWithTitles = testData.sections.map((section, index) => ({
@@ -428,6 +432,12 @@ const CreateTestPage = () => {
         codingQuestions: (s.codingQuestions || []).map(normalizeCodingQuestion)
       }))
     };
+    if (startTime.trim()) testData.startTime = new Date(startTime).toISOString();
+    if (endTime.trim()) testData.endTime = new Date(endTime).toISOString();
+    if (isEditing && !startTime.trim() && !endTime.trim()) {
+      testData.startTime = null;
+      testData.endTime = null;
+    }
 
     const token = localStorage.getItem('token');
     const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -540,6 +550,34 @@ const CreateTestPage = () => {
                 placeholder="Enter maximum number of warnings"
               />
               <p className="text-sm text-gray-500 mt-1">Customize the warning here </p>
+            </div>
+
+            <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <p className="text-gray-700 font-semibold mb-2">Test availability window (optional)</p>
+              <p className="text-sm text-gray-500 mb-3">If set, students can only access the test between these times. Leave empty for no restriction.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Start time</label>
+                  <input
+                    type="datetime-local"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full p-2 border rounded bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">End time</label>
+                  <input
+                    type="datetime-local"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full p-2 border rounded bg-white"
+                  />
+                </div>
+              </div>
+              {(startTime || endTime) && (
+                <p className="text-xs text-amber-700 mt-2">Start must be before end. For new tests, end time should be in the future.</p>
+              )}
             </div>
           </div>
 

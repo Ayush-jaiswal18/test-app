@@ -121,6 +121,9 @@ const DashboardPage = () => {
                   <div className="space-y-2">
                     <DetailRow text={`${totalQuestions} Questions${sectionsCount ? ` (${sectionsCount} Sections)` : ''}`} />
                     <DetailRow text={`${test.duration} Minutes`} />
+                    {test.startTime && test.endTime && (
+                      <DetailRow text={`Window: ${new Date(test.startTime).toLocaleString()} – ${new Date(test.endTime).toLocaleString()}`} />
+                    )}
                     {test.allowResume && <DetailRow text="Resume enabled" />}
                   </div>
 

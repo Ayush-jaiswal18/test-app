@@ -692,25 +692,89 @@ const TestPage = () => {
   if (error) return <p className="text-center mt-8 text-red-500">{error}</p>;
   if (accessError) {
     const isNotStarted = accessError.toLowerCase().includes('not started');
+    const accentFrom = isNotStarted ? 'from-amber-500' : 'from-red-500';
+    const accentTo = isNotStarted ? 'to-orange-400' : 'to-rose-400';
+    const bgFrom = isNotStarted ? 'from-amber-50' : 'from-red-50';
+    const bgTo = isNotStarted ? 'to-orange-100' : 'to-rose-100';
+    const iconBg = isNotStarted ? 'bg-amber-100' : 'bg-red-100';
+    const iconText = isNotStarted ? 'text-amber-600' : 'text-red-600';
+    const headingText = isNotStarted ? 'text-amber-900' : 'text-red-900';
+    const badgeBg = isNotStarted ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${isNotStarted ? 'bg-amber-100' : 'bg-red-100'}`}>
+      <div className={`min-h-screen w-full bg-gradient-to-br ${bgFrom} ${bgTo} flex flex-col`}>
+        {/* Top accent bar */}
+        <div className={`h-1.5 w-full bg-gradient-to-r ${accentFrom} ${accentTo}`} />
+
+        {/* Centered content */}
+        <div className="flex-1 flex flex-col items-center justify-center px-4 py-16">
+
+          {/* Icon circle */}
+          <div className={`flex items-center justify-center w-28 h-28 rounded-full ${iconBg} shadow-lg mb-8`}>
             {isNotStarted ? (
-              <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg className={`w-14 h-14 ${iconText}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             ) : (
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg className={`w-14 h-14 ${iconText}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
               </svg>
             )}
           </div>
-          <h1 className={`text-xl font-bold mb-2 ${isNotStarted ? 'text-amber-800' : 'text-red-800'}`}>
-            {isNotStarted ? 'Test not started yet' : 'Test expired'}
+
+          {/* Status badge */}
+          <span className={`text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4 ${badgeBg}`}>
+            {isNotStarted ? '⏳ Not Available Yet' : '🚫 Access Denied'}
+          </span>
+
+          {/* Heading */}
+          <h1 className={`text-4xl md:text-5xl font-extrabold ${headingText} text-center mb-4`}>
+            {isNotStarted ? 'Test Has Not Started' : 'Test Has Expired'}
           </h1>
-          <p className="text-gray-600">{accessError}</p>
+
+          {/* Sub message */}
+          <p className="text-lg text-gray-600 text-center max-w-lg mb-8 leading-relaxed">
+            {accessError}
+          </p>
+
+          {/* Test info card (shown if test is loaded) */}
+          {test && (
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-6 mb-8 text-left space-y-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Test Details</p>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-gray-500 text-sm">Test Name</span>
+                <span className="font-semibold text-gray-800 text-sm">{test.title}</span>
+              </div>
+              {test.startTime && (
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-500 text-sm">Start Time</span>
+                  <span className="font-semibold text-gray-800 text-sm">{new Date(test.startTime).toLocaleString()}</span>
+                </div>
+              )}
+              {test.endTime && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500 text-sm">End Time</span>
+                  <span className="font-semibold text-gray-800 text-sm">{new Date(test.endTime).toLocaleString()}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action button */}
+          <a
+            href="/"
+            className={`inline-flex items-center gap-2 bg-gradient-to-r ${accentFrom} ${accentTo} text-white font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all`}
+          >
+            ← Go to Home
+          </a>
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-gray-400 py-4">
+          If you believe this is an error, please contact your instructor.
+        </p>
       </div>
     );
   }

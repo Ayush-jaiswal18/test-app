@@ -221,10 +221,13 @@ exports.getStudentResult = async (req, res) => {
 
     // Build section-wise breakdown for sectioned tests
     let sectionBreakdown = [];
+    let questionDetails = []; // To store per-question details
+
     if (test.sections && test.sections.length > 0) {
       sectionBreakdown = test.sections.map((section, sIdx) => {
         let sectionScore = 0;
         let sectionTotal = 0;
+        let sectionQuestionDetails = [];
 
         section.questions.forEach((question, qIdx) => {
           const points = question.points || 1;
@@ -234,28 +237,56 @@ exports.getStudentResult = async (req, res) => {
             a.sectionIndex === sIdx && a.questionIndex === qIdx
           );
 
+          let qScore = 0;
+          let qFeedback = '';
+          let studentResponse = studentAnswer?.selectedOption || '';
+          let isCorrect = false;
+          let correctAnswer = question.correctAnswer;
+
           if (question.questionType === 'descriptive') {
             const descAnswer = result.descriptiveAnswers.find(a =>
               a.sectionIndex === sIdx && a.questionIndex === qIdx
             );
-            sectionScore += (descAnswer?.score || 0);
+            qScore = (descAnswer?.score || 0);
+            qFeedback = descAnswer?.feedback || '';
+            studentResponse = descAnswer?.answerText || '';
+            // Descriptive questions are not auto-marked as correct/incorrect
+            isCorrect = null;
+            correctAnswer = null; // No single correct answer for descriptive
           } else if (question.questionType === 'fill-blank') {
             if (studentAnswer) {
               const userAnswer = studentAnswer.selectedOption;
               const acceptableAnswers = question.acceptableAnswers || [];
-              const isCorrect = question.caseSensitive
+              isCorrect = question.caseSensitive
                 ? acceptableAnswers.includes(userAnswer)
                 : acceptableAnswers.some(ans => ans.toLowerCase() === (userAnswer || '').toLowerCase());
-              if (isCorrect) sectionScore += points;
+              if (isCorrect) qScore = points;
+              correctAnswer = acceptableAnswers.join(' / '); // Show all acceptable answers
             }
-          } else {
+          } else { // MCQ, true-false, image-based
             if (studentAnswer && studentAnswer.selectedOption === question.correctAnswer) {
-              sectionScore += points;
+              qScore = points;
+              isCorrect = true;
+            } else {
+              isCorrect = false;
             }
           }
+          sectionScore += qScore;
+
+          sectionQuestionDetails.push({
+            questionText: question.questionText,
+            questionType: question.questionType,
+            studentResponse: studentResponse,
+            correctAnswer: correctAnswer,
+            isCorrect: isCorrect,
+            score: qScore,
+            maxScore: points,
+            feedback: qFeedback,
+            options: question.options // Include options for MCQs
+          });
         });
 
-        // Add coding question scores
+        // Add coding question scores and details
         if (section.codingQuestions && section.codingQuestions.length > 0) {
           section.codingQuestions.forEach((cq, cqIdx) => {
             const maxScore = cq.testCases?.reduce((sum, tc) => sum + (tc.weight || 1), 0) || 10;
@@ -263,15 +294,84 @@ exports.getStudentResult = async (req, res) => {
             const codingAnswer = result.codingAnswers?.find(a =>
               a.sectionIndex === sIdx && a.codingQuestionIndex === cqIdx
             );
-            sectionScore += (codingAnswer?.score || 0);
+            const qScore = (codingAnswer?.score || 0);
+            sectionScore += qScore;
+
+            sectionQuestionDetails.push({
+              questionText: cq.questionText,
+              questionType: 'coding',
+              studentResponse: codingAnswer?.sourceCode || '',
+              score: qScore,
+              maxScore: maxScore,
+              feedback: codingAnswer?.feedback || '',
+              language: codingAnswer?.language || '',
+              testCases: codingAnswer?.testCaseResults || [] // Include test case results if available
+            });
           });
         }
+        questionDetails.push({
+          sectionTitle: section.sectionTitle,
+          questions: sectionQuestionDetails
+        });
 
         return {
           sectionTitle: section.sectionTitle,
           score: sectionScore,
           totalMarks: sectionTotal
         };
+      });
+    } else {
+      // For non-sectioned tests
+      test.questions.forEach((question, index) => {
+        const points = question.points || 1;
+        let qScore = 0;
+        let qFeedback = '';
+        let studentResponse = '';
+        let isCorrect = false;
+        let correctAnswer = question.correctAnswer;
+
+        const studentAnswer = result.answers.find(a => a.questionIndex === index);
+
+        if (question.questionType === 'descriptive') {
+          const descAnswer = result.descriptiveAnswers.find(a => a.questionIndex === index);
+          qScore = (descAnswer?.score || 0);
+          qFeedback = descAnswer?.feedback || '';
+          studentResponse = descAnswer?.answerText || '';
+          isCorrect = null;
+          correctAnswer = null;
+        } else if (question.questionType === 'fill-blank') {
+          if (studentAnswer) {
+            studentResponse = studentAnswer.selectedOption;
+            const acceptableAnswers = question.acceptableAnswers || [];
+            isCorrect = question.caseSensitive
+              ? acceptableAnswers.includes(studentResponse)
+              : acceptableAnswers.some(ans => ans.toLowerCase() === (studentResponse || '').toLowerCase());
+            if (isCorrect) qScore = points;
+            correctAnswer = acceptableAnswers.join(' / ');
+          }
+        } else { // MCQ, true-false, image-based
+          if (studentAnswer) {
+            studentResponse = studentAnswer.selectedOption;
+            if (studentAnswer.selectedOption === question.correctAnswer) {
+              qScore = points;
+              isCorrect = true;
+            } else {
+              isCorrect = false;
+            }
+          }
+        }
+
+        questionDetails.push({
+          questionText: question.questionText,
+          questionType: question.questionType,
+          studentResponse: studentResponse,
+          correctAnswer: correctAnswer,
+          isCorrect: isCorrect,
+          score: qScore,
+          maxScore: points,
+          feedback: qFeedback,
+          options: question.options
+        });
       });
     }
 
@@ -287,7 +387,8 @@ exports.getStudentResult = async (req, res) => {
         submittedAt: result.createdAt,
         testTitle: test.title,
         testDescription: test.description,
-        sectionBreakdown
+        sectionBreakdown,
+        questionDetails // Include the new per-question details
       }
     });
   } catch (error) {

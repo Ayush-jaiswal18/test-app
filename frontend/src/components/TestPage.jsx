@@ -22,6 +22,8 @@ const TestPage = () => {
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [questionTimeLeft, setQuestionTimeLeft] = useState(null); // Per-question timer
+  const [skippedQuestions, setSkippedQuestions] = useState([]); // Track skipped questions
   const [currentSection, setCurrentSection] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [timeSpent, setTimeSpent] = useState(0);
@@ -124,7 +126,11 @@ const TestPage = () => {
           setCodingAnswers([]);
         }
 
-        setTimeLeft(testData.duration * 60);
+        setTimeLeft(testData.timerType === 'GLOBAL' ? (testData.globalDuration || testData.duration) * 60 : null);
+        // Initialize per-question timer if needed
+        if (testData.timerType === 'PER_QUESTION') {
+          setQuestionTimeLeft(testData.perQuestionDuration || 60);
+        }
       } catch (err) {
         if (err.response?.status === 403 && err.response?.data?.message) {
           setAccessError(err.response.data.message);
@@ -194,7 +200,8 @@ const TestPage = () => {
 
   useEffect(() => {
     let timer;
-    if (started && timeLeft > 0) {
+    // Only run global timer if timerType is GLOBAL
+    if (started && test?.timerType !== 'PER_QUESTION' && timeLeft > 0) {
       timer = setInterval(() => {
         setTimeLeft(prevTime => {
           const newTimeLeft = prevTime - 1;
@@ -207,13 +214,116 @@ const TestPage = () => {
           return newTimeSpent;
         });
       }, 1000);
-    } else if (timeLeft === 0 && started) {
-      // Auto-submit when timer reaches 0
+    } else if (timeLeft === 0 && started && test?.timerType !== 'PER_QUESTION') {
+      // Auto-submit when global timer reaches 0
       console.log('Time up! Auto-submitting test');
       handleSubmit();
     }
     return () => clearInterval(timer);
-  }, [started, timeLeft]);
+  }, [started, timeLeft, test?.timerType]);
+
+  // Per-question timer effect
+  useEffect(() => {
+    let questionTimer;
+    if (started && test?.timerType === 'PER_QUESTION' && questionTimeLeft !== null && questionTimeLeft > 0) {
+      questionTimer = setInterval(() => {
+        setQuestionTimeLeft(prevTime => {
+          const newTime = prevTime - 1;
+          console.log('Question timer tick - Time left:', newTime);
+          return newTime;
+        });
+        setTimeSpent(prevTime => prevTime + 1); // Track total time spent
+      }, 1000);
+    } else if (questionTimeLeft === 0 && started && !submitted && test?.timerType === 'PER_QUESTION') {
+      // Auto-skip when question timer reaches 0
+      console.log('Question time up! Auto-skipping to next question');
+      autoSkipToNextQuestion();
+    }
+    return () => clearInterval(questionTimer);
+  }, [started, questionTimeLeft, submitted, test?.timerType]);
+
+  // Function to reset question timer
+  const resetQuestionTimer = useCallback(() => {
+    if (test?.timerType === 'PER_QUESTION' && test?.perQuestionDuration) {
+      setQuestionTimeLeft(test.perQuestionDuration);
+    }
+  }, [test]);
+
+  // Function to auto-skip to next question when timer expires
+  const autoSkipToNextQuestion = useCallback(() => {
+    if (!test || submitted) return;
+
+    // Mark current question as skipped if not answered
+    const isAnswered = questionMode === 'mcq'
+      ? answers.some(a => a && a.sectionIndex === currentSection && a.questionIndex === currentQuestion)
+      : codingAnswers.some(a => a && a.sectionIndex === currentSection && a.codingQuestionIndex === currentCodingQuestion);
+
+    if (!isAnswered) {
+      const skippedKey = `${currentSection}-${questionMode}-${questionMode === 'mcq' ? currentQuestion : currentCodingQuestion}`;
+      setSkippedQuestions(prev => [...prev, skippedKey]);
+      console.log('Question marked as skipped:', skippedKey);
+    } else {
+      // Save the current answer
+      saveProgress();
+      console.log('Answer auto-saved before skip');
+    }
+
+    // Navigate to next question
+    if (test.sections && test.sections.length > 0) {
+      const currentSectionData = test.sections[currentSection];
+      const hasMCQ = currentSectionData.questions && currentSectionData.questions.length > 0;
+      const hasCoding = currentSectionData.codingQuestions && currentSectionData.codingQuestions.length > 0;
+
+      if (questionMode === 'mcq' && hasMCQ) {
+        if (currentQuestion < currentSectionData.questions.length - 1) {
+          setCurrentQuestion(prev => prev + 1);
+          resetQuestionTimer();
+        } else if (hasCoding) {
+          // Switch to coding questions
+          setQuestionMode('coding');
+          setCurrentCodingQuestion(0);
+          resetQuestionTimer();
+        } else if (currentSection < test.sections.length - 1) {
+          // Move to next section
+          setCurrentSection(prev => prev + 1);
+          setCurrentQuestion(0);
+          setCurrentCodingQuestion(0);
+          setViewedSections(prev => new Set(prev).add(currentSection + 1));
+          resetQuestionTimer();
+        } else {
+          // Last question - auto submit
+          console.log('Last question reached, auto-submitting...');
+          handleSubmit();
+        }
+      } else if (questionMode === 'coding' && hasCoding) {
+        if (currentCodingQuestion < currentSectionData.codingQuestions.length - 1) {
+          setCurrentCodingQuestion(prev => prev + 1);
+          resetQuestionTimer();
+        } else if (currentSection < test.sections.length - 1) {
+          // Move to next section
+          setCurrentSection(prev => prev + 1);
+          setCurrentQuestion(0);
+          setCurrentCodingQuestion(0);
+          setViewedSections(prev => new Set(prev).add(currentSection + 1));
+          resetQuestionTimer();
+        } else {
+          // Last question - auto submit
+          console.log('Last question reached, auto-submitting...');
+          handleSubmit();
+        }
+      }
+    } else {
+      // Traditional test
+      if (currentQuestion < test.questions.length - 1) {
+        setCurrentQuestion(prev => prev + 1);
+        resetQuestionTimer();
+      } else {
+        // Last question - auto submit
+        console.log('Last question reached, auto-submitting...');
+        handleSubmit();
+      }
+    }
+  }, [test, submitted, questionMode, currentSection, currentQuestion, currentCodingQuestion, answers, codingAnswers, saveProgress, resetQuestionTimer]);
 
   // Auto-save progress every 30 seconds
   useEffect(() => {
@@ -681,6 +791,10 @@ const TestPage = () => {
       : Math.max(currentQuestion - 1, 0);
 
     setCurrentQuestion(newQuestion);
+    // Reset question timer when navigating (for per-question timer mode)
+    if (test?.timerType === 'PER_QUESTION') {
+      resetQuestionTimer();
+    }
   };
 
   const formatTime = (seconds) => {
@@ -1327,10 +1441,20 @@ const TestPage = () => {
             )}
           </div>
           <div className="flex justify-center gap-6 items-center py-2 bg-gray-50 rounded-lg">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-red-500">{formatTime(timeLeft)}</div>
-              <div className="text-xs text-gray-600 mt-0.5">Time Remaining</div>
-            </div>
+            {/* Show appropriate timer based on timerType */}
+            {test.timerType === 'PER_QUESTION' ? (
+              <div className="text-center">
+                <div className={`text-3xl font-bold ${questionTimeLeft !== null && questionTimeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-orange-500'}`}>
+                  {questionTimeLeft !== null ? formatTime(questionTimeLeft) : '--:--'}
+                </div>
+                <div className="text-xs text-gray-600 mt-0.5">Question Time</div>
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="text-3xl font-bold text-red-500">{formatTime(timeLeft)}</div>
+                <div className="text-xs text-gray-600 mt-0.5">Time Remaining</div>
+              </div>
+            )}
             <div className="w-px h-8 bg-gray-300"></div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
@@ -1344,20 +1468,34 @@ const TestPage = () => {
               </div>
             </div>
           </div>
+          {/* Warning for PER_QUESTION mode */}
+          {test.timerType === 'PER_QUESTION' && (
+            <div className="mt-2 text-center">
+              <p className="text-xs text-amber-600 font-medium bg-amber-50 py-1 px-3 rounded-full inline-block">
+                ⚠️ You cannot go back to previous questions in this test
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Question Type Tabs */}
+        {/* Question Type Tabs - Disabled in PER_QUESTION mode to prevent going back */}
         {(hasMCQ && hasCoding) && (
           <div className="mb-4 flex gap-2 border-b">
             <button
               onClick={() => {
+                // In PER_QUESTION mode, only allow switching if on MCQ section start
+                if (test?.timerType === 'PER_QUESTION' && questionMode === 'coding') {
+                  return; // Don't allow switching back to MCQ
+                }
                 setQuestionMode('mcq');
                 setCurrentQuestion(0);
+                if (test?.timerType === 'PER_QUESTION') resetQuestionTimer();
               }}
+              disabled={test?.timerType === 'PER_QUESTION' && questionMode === 'coding'}
               className={`px-4 py-2 font-medium transition-colors ${questionMode === 'mcq'
                 ? 'border-b-2 border-blue-600 text-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
-                }`}
+                } ${test?.timerType === 'PER_QUESTION' && questionMode === 'coding' ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               Multiple Choice ({hasMCQ ? currentSectionData.questions.length : 0})
             </button>
@@ -1365,6 +1503,7 @@ const TestPage = () => {
               onClick={() => {
                 setQuestionMode('coding');
                 setCurrentCodingQuestion(0);
+                if (test?.timerType === 'PER_QUESTION') resetQuestionTimer();
               }}
               className={`px-4 py-2 font-medium transition-colors ${questionMode === 'coding'
                 ? 'border-b-2 border-blue-600 text-blue-600'
@@ -1548,13 +1687,16 @@ const TestPage = () => {
           <div className="flex space-x-2">
             {questionMode === 'mcq' ? (
               <>
-                <button
-                  onClick={() => navigateQuestion('prev')}
-                  disabled={isFirstQuestion && isFirstSection}
-                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
+                {/* Previous button - Hidden/Disabled in PER_QUESTION mode */}
+                {test?.timerType !== 'PER_QUESTION' && (
+                  <button
+                    onClick={() => navigateQuestion('prev')}
+                    disabled={isFirstQuestion && isFirstSection}
+                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                )}
                 <button
                   onClick={() => navigateQuestion('next')}
                   disabled={isLastQuestion && isLastSection}
@@ -1565,15 +1707,23 @@ const TestPage = () => {
               </>
             ) : (
               <>
+                {/* Previous button for coding - Hidden/Disabled in PER_QUESTION mode */}
+                {test?.timerType !== 'PER_QUESTION' && (
+                  <button
+                    onClick={() => {
+                      setCurrentCodingQuestion(Math.max(0, currentCodingQuestion - 1));
+                    }}
+                    disabled={currentCodingQuestion === 0}
+                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                )}
                 <button
-                  onClick={() => setCurrentCodingQuestion(Math.max(0, currentCodingQuestion - 1))}
-                  disabled={currentCodingQuestion === 0}
-                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setCurrentCodingQuestion(Math.min((hasCoding ? currentSectionData.codingQuestions.length - 1 : 0), currentCodingQuestion + 1))}
+                  onClick={() => {
+                    setCurrentCodingQuestion(Math.min((hasCoding ? currentSectionData.codingQuestions.length - 1 : 0), currentCodingQuestion + 1));
+                    if (test?.timerType === 'PER_QUESTION') resetQuestionTimer();
+                  }}
                   disabled={currentCodingQuestion >= (hasCoding ? currentSectionData.codingQuestions.length - 1 : 0)}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1630,6 +1780,89 @@ const TestPage = () => {
   }
 
   // Render traditional test (backward compatibility)
+  // For PER_QUESTION mode, show one question at a time
+  if (test.timerType === 'PER_QUESTION') {
+    const currentQ = test.questions[currentQuestion];
+    const currentAnswer = answers.find(a => {
+      if (!a) return false;
+      return a.questionIndex === currentQuestion && (a.sectionIndex === undefined || a.sectionIndex === 0);
+    });
+    const isLastQ = currentQuestion === test.questions.length - 1;
+
+    return (
+      <div className="min-h-screen w-full px-6 py-6">
+        <div className="flex justify-between items-center mb-6 border-b pb-4">
+          <h1 className="text-3xl font-bold">{test.title}</h1>
+          <div className="flex items-center gap-4">
+            <div className="text-center">
+              <div className={`text-2xl font-semibold ${questionTimeLeft !== null && questionTimeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-orange-500'}`}>
+                {questionTimeLeft !== null ? formatTime(questionTimeLeft) : '--:--'}
+              </div>
+              <div className="text-xs text-gray-500">Question Time</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-semibold text-blue-600">
+                {currentQuestion + 1}/{test.questions.length}
+              </div>
+              <div className="text-xs text-gray-500">Question</div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Warning for PER_QUESTION mode */}
+        <div className="mb-4 text-center">
+          <p className="text-xs text-amber-600 font-medium bg-amber-50 py-1 px-3 rounded-full inline-block">
+            ⚠️ You cannot go back to previous questions in this test
+          </p>
+        </div>
+
+        <div className="mb-8 bg-gray-50 p-6 rounded-lg">
+          <p className="text-xl font-semibold mb-4">{currentQuestion + 1}. {currentQ.questionText}</p>
+          <div className="space-y-2">
+            {currentQ.options.map((option, oIndex) => (
+              <label key={oIndex} className="flex items-center p-3 border rounded-lg hover:bg-gray-100 cursor-pointer bg-white">
+                <input
+                  type="radio"
+                  name={`question-${currentQuestion}`}
+                  className="mr-3"
+                  checked={currentAnswer && currentAnswer.selectedOption === oIndex}
+                  onChange={() => handleAnswerChange(0, currentQuestion, oIndex)}
+                />
+                {option}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center">
+          {/* No Previous button in PER_QUESTION mode */}
+          <div></div>
+          <div className="flex space-x-2">
+            {!isLastQ ? (
+              <button 
+                onClick={() => {
+                  setCurrentQuestion(prev => prev + 1);
+                  resetQuestionTimer();
+                }}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-bold"
+              >
+                Next Question
+              </button>
+            ) : (
+              <button 
+                onClick={handleSubmit} 
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold"
+              >
+                Submit Test
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // GLOBAL timer mode - show all questions at once
   return (
     <div className="min-h-screen w-full px-6 py-6">
       <div className="flex justify-between items-center mb-6 border-b pb-4">
@@ -1640,24 +1873,6 @@ const TestPage = () => {
         const currentAnswer = answers.find(a => {
           if (!a) return false;
           return a.questionIndex === qIndex && (a.sectionIndex === undefined || a.sectionIndex === 0);
-        });
-
-        console.log(`🔍 TRADITIONAL TEST - Question ${qIndex}:`, {
-          questionIndex: qIndex,
-          currentAnswer: currentAnswer,
-          detailedMatch: answers.map((a, idx) => ({
-            index: idx,
-            questionIndex: a?.questionIndex,
-            sectionIndex: a?.sectionIndex,
-            selectedOption: a?.selectedOption,
-            matchesQuestion: a?.questionIndex === qIndex,
-            sectionUndefinedOrZero: a?.sectionIndex === undefined || a?.sectionIndex === 0,
-            isMatch: a?.questionIndex === qIndex && (a?.sectionIndex === undefined || a?.sectionIndex === 0),
-            dataTypes: {
-              questionIndex: typeof a?.questionIndex,
-              qIndex: typeof qIndex
-            }
-          }))
         });
 
         return (

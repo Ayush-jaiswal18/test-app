@@ -105,8 +105,21 @@ const testSchema = new mongoose.Schema({
     required: [true, 'Please add a description'],
   },
   duration: {
-    type: Number, // Duration in minutes
-    required: true,
+    type: Number, // Duration in minutes (for global timer)
+    required: false, // Not required if using per-question timer
+  },
+  timerType: {
+    type: String,
+    enum: ['GLOBAL', 'PER_QUESTION'],
+    default: 'GLOBAL',
+  },
+  globalDuration: {
+    type: Number, // Global duration in minutes (same as duration, for clarity)
+    default: null,
+  },
+  perQuestionDuration: {
+    type: Number, // Per question duration in seconds
+    default: null,
   },
   // Keep backward compatibility - if sections exist, use them, otherwise use questions
   questions: [questionSchema], // For backward compatibility

@@ -76,15 +76,34 @@ const normalizeSections = (sections = []) => {
 // @route   POST /api/tests
 // @access  Private (Admin)
 exports.createTest = async (req, res) => {
-  const { title, description, duration, questions, sections, allowResume, maxWarnings, startTime, endTime } = req.body;
+  const { title, description, duration, globalDuration, perQuestionDuration, timerType, questions, sections, allowResume, maxWarnings, showScoreToStudents, startTime, endTime } = req.body;
   
   try {
     // Validate required fields
-    if (!title || !description || !duration) {
+    if (!title || !description) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Please provide title, description, and duration' 
+        message: 'Please provide title and description' 
       });
+    }
+
+    // Validate timer configuration
+    const effectiveTimerType = timerType || 'GLOBAL';
+    if (effectiveTimerType === 'GLOBAL') {
+      const effectiveDuration = globalDuration || duration;
+      if (!effectiveDuration || Number(effectiveDuration) <= 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Please provide a valid duration for global timer' 
+        });
+      }
+    } else if (effectiveTimerType === 'PER_QUESTION') {
+      if (!perQuestionDuration || Number(perQuestionDuration) <= 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Please provide a valid per-question duration' 
+        });
+      }
     }
 
     // Ensure at least questions or sections are provided
@@ -98,11 +117,23 @@ exports.createTest = async (req, res) => {
     const testData = {
       title,
       description,
-      duration: Number(duration),
+      timerType: effectiveTimerType,
       allowResume: allowResume !== undefined ? allowResume : true,
+      showScoreToStudents: showScoreToStudents !== undefined ? showScoreToStudents : false,
       createdBy: req.admin._id,
       isPublic: false, // Default to false
     };
+
+    // Set duration fields based on timer type
+    if (effectiveTimerType === 'GLOBAL') {
+      const effectiveDuration = Number(globalDuration || duration);
+      testData.duration = effectiveDuration;
+      testData.globalDuration = effectiveDuration;
+    } else if (effectiveTimerType === 'PER_QUESTION') {
+      testData.perQuestionDuration = Number(perQuestionDuration);
+      // Set a dummy duration for backward compatibility (can be calculated from questions)
+      testData.duration = null;
+    }
 
     // If admin provided maxWarnings, validate and include it
     if (maxWarnings !== undefined) {

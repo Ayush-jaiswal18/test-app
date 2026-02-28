@@ -18,7 +18,9 @@ const CreateTestPage = () => {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [duration, setDuration] = useState(10);
+  const [timerType, setTimerType] = useState('GLOBAL'); // 'GLOBAL' or 'PER_QUESTION'
+  const [duration, setDuration] = useState(10); // Global duration in minutes
+  const [perQuestionDuration, setPerQuestionDuration] = useState(60); // Per question duration in seconds
   const [allowResume, setAllowResume] = useState(true);
   const [maxWarnings, setMaxWarnings] = useState(6);
   const [showScoreToStudents, setShowScoreToStudents] = useState(false);
@@ -223,7 +225,16 @@ const CreateTestPage = () => {
 
           setTitle(testData.title);
           setDescription(testData.description);
-          setDuration(testData.duration);
+          // Handle timer type from saved data
+          if (testData.timerType === 'PER_QUESTION') {
+            setTimerType('PER_QUESTION');
+            setPerQuestionDuration(testData.perQuestionDuration || 60);
+            setDuration(10); // Reset global duration
+          } else {
+            setTimerType('GLOBAL');
+            setDuration(testData.duration || testData.globalDuration || 10);
+            setPerQuestionDuration(60); // Reset per question duration
+          }
           setAllowResume(testData.allowResume ?? true);
           setMaxWarnings(testData.maxWarnings ?? 6);
           setShowScoreToStudents(testData.showScoreToStudents ?? false);
@@ -419,10 +430,25 @@ const CreateTestPage = () => {
       };
     };
 
+    // Validation based on timer type
+    if (timerType === 'GLOBAL' && (!duration || Number(duration) <= 0)) {
+      setError('Please enter a valid global duration in minutes.');
+      return;
+    }
+    if (timerType === 'PER_QUESTION' && (!perQuestionDuration || Number(perQuestionDuration) <= 0)) {
+      setError('Please enter a valid per-question duration in seconds.');
+      return;
+    }
+
     const testData = {
       title: title.trim(),
       description: description.trim(),
-      duration: Number(duration),
+      timerType,
+      // Include appropriate duration based on timer type
+      ...(timerType === 'GLOBAL' 
+        ? { globalDuration: Number(duration), duration: Number(duration) } 
+        : { perQuestionDuration: Number(perQuestionDuration) }
+      ),
       allowResume,
       maxWarnings: Number(maxWarnings),
       showScoreToStudents,
@@ -499,16 +525,91 @@ const CreateTestPage = () => {
               />
             </div>
 
-            <div className="mb-4">
-              <label className="block text-gray-700 font-semibold mb-2">Duration (minutes) *</label>
-              <input
-                type="number"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                required
-                min="1"
-                className="w-full p-2 border rounded"
-              />
+            {/* Timer Type Selection */}
+            <div className="mb-6 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+              <label className="block text-gray-700 font-semibold mb-3">Timer Type *</label>
+              <div className="space-y-3">
+                {/* Global Timer Option */}
+                <label className={`flex items-start p-3 rounded-lg cursor-pointer transition border-2 ${
+                  timerType === 'GLOBAL' 
+                    ? 'bg-white border-indigo-500 shadow-sm' 
+                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="timerType"
+                    value="GLOBAL"
+                    checked={timerType === 'GLOBAL'}
+                    onChange={(e) => {
+                      setTimerType(e.target.value);
+                      setPerQuestionDuration(60); // Clear per-question duration
+                    }}
+                    className="mt-1 mr-3 w-4 h-4 text-indigo-600"
+                  />
+                  <div className="flex-1">
+                    <span className="font-medium text-gray-800">Global Timer</span>
+                    <p className="text-sm text-gray-500 mt-0.5">Set a single timer for the entire test. Students must complete all questions within this time.</p>
+                  </div>
+                </label>
+
+                {/* Per Question Timer Option */}
+                <label className={`flex items-start p-3 rounded-lg cursor-pointer transition border-2 ${
+                  timerType === 'PER_QUESTION' 
+                    ? 'bg-white border-indigo-500 shadow-sm' 
+                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="timerType"
+                    value="PER_QUESTION"
+                    checked={timerType === 'PER_QUESTION'}
+                    onChange={(e) => {
+                      setTimerType(e.target.value);
+                      setDuration(10); // Clear global duration
+                    }}
+                    className="mt-1 mr-3 w-4 h-4 text-indigo-600"
+                  />
+                  <div className="flex-1">
+                    <span className="font-medium text-gray-800">Per Question Timer</span>
+                    <p className="text-sm text-gray-500 mt-0.5">Each question has its own timer. When time runs out, the question auto-skips to the next.</p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Conditional Duration Inputs */}
+              <div className="mt-4">
+                {timerType === 'GLOBAL' && (
+                  <div className="animate-fadeIn">
+                    <label className="block text-gray-700 font-medium mb-2">Total Test Duration (minutes) *</label>
+                    <input
+                      type="number"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      required
+                      min="1"
+                      className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter duration in minutes"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Total time allowed for the entire test</p>
+                  </div>
+                )}
+
+                {timerType === 'PER_QUESTION' && (
+                  <div className="animate-fadeIn">
+                    <label className="block text-gray-700 font-medium mb-2">Time Per Question (seconds) *</label>
+                    <input
+                      type="number"
+                      value={perQuestionDuration}
+                      onChange={(e) => setPerQuestionDuration(e.target.value)}
+                      required
+                      min="10"
+                      className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter duration in seconds"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Time allowed for each question. Auto-skips when timer reaches 0.</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mb-4">

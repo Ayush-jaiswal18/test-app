@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: test-portal-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: MONGO_URI
+        sync: false          # set in Render dashboard
+      - key: JWT_SECRET
+        sync: false          # set in Render dashboard
+      - key: JUDGE0_URL
+        value: https://judge0-ce.p.rapidapi.com
+      - key: JUDGE0_KEY
+        sync: false          # set in Render dashboard
+      - key: FRONTEND_URL
+        sync: false          # set in Render dashboard — your Vercel URL

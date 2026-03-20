@@ -134,7 +134,7 @@ const Proctoring = ({ onMaxWarnings, maxWarnings = 6 }) => {
 
       // ✅ ALERT ON EVERY WARNING
       alert(
-        `⚠️ Proctoring Warning (${warningCountRef.current}/${MAX_WARNINGS})\n\n${type}`
+        `Proctoring Warning (${warningCountRef.current}/${MAX_WARNINGS})\n\n${type}`
       );
 
       if (warningCountRef.current === WARNING_THRESHOLD) {
@@ -203,14 +203,14 @@ const Proctoring = ({ onMaxWarnings, maxWarnings = 6 }) => {
 
       {warningVisible && (
         <div className="px-3 py-1 rounded mt-2 text-sm bg-yellow-100 border border-yellow-400 text-yellow-700">
-          ⚠️ {warning}
+          {warning}
         </div>
       )}
 
       <div className="flex justify-between w-full mt-2 bg-black bg-opacity-50 rounded-b-lg px-2 py-1">
-        <p className="text-white text-xs">🧠 AI Proctoring</p>
+        <p className="text-white text-xs">AI Proctoring</p>
         <p className="text-white text-xs">
-          ⚠️ {warningCountRef.current}/{MAX_WARNINGS}
+          {warningCountRef.current}/{MAX_WARNINGS}
         </p>
       </div>
     </div>

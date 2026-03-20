@@ -21,7 +21,7 @@ export default function CodeEditor({
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [testResults, setTestResults] = useState(null);
-  const [showOutput, setShowOutput] = useState(false);
+  const [activeTab, setActiveTab] = useState("input"); // code | input | output
 
   // Update code when initialCode or starterCode changes
   useEffect(() => {
@@ -120,13 +120,13 @@ export default function CodeEditor({
   const runCode = async () => {
     if (!code.trim()) {
       setOutput("Error: Please write some code first");
-      setShowOutput(true);
+      setActiveTab("output");
       return;
     }
 
     setRunning(true);
     setOutput("Running your code...");
-    setShowOutput(true);
+    setActiveTab("output");
     setTestResults(null);
     
     try {
@@ -148,19 +148,19 @@ export default function CodeEditor({
   const submitCode = async () => {
     if (!code.trim()) {
       setOutput("Error: Please write some code first");
-      setShowOutput(true);
+      setActiveTab("output");
       return;
     }
 
     if (!questionId) {
       setOutput("Error: Question ID not provided");
-      setShowOutput(true);
+      setActiveTab("output");
       return;
     }
 
     setSubmitting(true);
     setOutput("Submitting your code...");
-    setShowOutput(true);
+    setActiveTab("output");
     
     try {
       const resp = await axios.post(`${API_URL}/api/code/submit/${questionId}`, {
@@ -203,16 +203,16 @@ export default function CodeEditor({
   };
 
   return (
-    <div className="w-full bg-white rounded-lg shadow-lg overflow-hidden">
+    <div className="w-full h-full bg-slate-900 text-white rounded-2xl shadow-xl overflow-hidden border border-slate-700 flex flex-col">
       {/* Toolbar */}
-      <div className="bg-gray-800 text-white px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+      <div className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <label className="text-sm font-medium">Language:</label>
+          <label className="text-sm font-medium text-gray-200">Language</label>
           <select
             value={language}
             onChange={handleLanguageChange}
             disabled={readOnly || running || submitting}
-            className="bg-gray-700 text-white px-3 py-1 rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="bg-slate-900 text-white px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
           >
             {allowedLanguages.map(lang => (
               <option key={lang} value={lang}>
@@ -229,26 +229,26 @@ export default function CodeEditor({
           <button
             onClick={runCode}
             disabled={running || submitting || readOnly}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-xl transition-colors text-sm font-semibold"
           >
-            {running ? "Running..." : "▶ Run Code"}
+            {running ? "Running..." : "Run Code"}
           </button>
           {questionId && (
             <button
               onClick={submitCode}
               disabled={running || submitting || readOnly}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded transition-colors text-sm font-medium"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-xl transition-colors text-sm font-semibold"
             >
-              {submitting ? "Submitting..." : "✓ Submit"}
+              {submitting ? "Submitting..." : "Submit"}
             </button>
           )}
         </div>
       </div>
 
       {/* Code Editor */}
-      <div className="border-t border-gray-300">
+      <div className="flex-1 min-h-[420px] border-b border-slate-700">
         <Editor
-          height="500px"
+          height="100%"
           language={getLanguageId(language)}
           value={code}
           onChange={handleCodeChange}
@@ -256,7 +256,7 @@ export default function CodeEditor({
           theme="vs-dark"
           options={{
             readOnly: readOnly,
-            minimap: { enabled: true },
+            minimap: { enabled: false },
             fontSize: 14,
             lineNumbers: "on",
             roundedSelection: false,
@@ -266,8 +266,8 @@ export default function CodeEditor({
             wordWrap: "on",
             formatOnPaste: false,
             formatOnType: false,
-            suggestOnTriggerCharacters: false,
-            quickSuggestions: false,
+            suggestOnTriggerCharacters: true,
+            quickSuggestions: true,
             parameterHints: { enabled: false },
             lightbulb: { enabled: false },
             suggest: {
@@ -281,15 +281,57 @@ export default function CodeEditor({
         />
       </div>
 
-      {/* Input/Output Section */}
-      <div className="border-t border-gray-300">
-        {/* Input Section */}
-        <div className="border-b border-gray-300">
-          <div className="bg-gray-50 px-4 py-2 flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-gray-700">Standard Input (stdin)</h4>
+      {/* Input/Output Tabs */}
+      <div className="px-4 pt-3 pb-4 border-b border-slate-700">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("code")}
+            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors border ${
+              activeTab === "code"
+                ? "bg-slate-900 text-white border-slate-600"
+                : "bg-slate-800 text-gray-300 border-slate-700 hover:bg-slate-700"
+            }`}
+          >
+            Code
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("input")}
+            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors border ${
+              activeTab === "input"
+                ? "bg-slate-900 text-white border-slate-600"
+                : "bg-slate-800 text-gray-300 border-slate-700 hover:bg-slate-700"
+            }`}
+          >
+            Input
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("output")}
+            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors border ${
+              activeTab === "output"
+                ? "bg-slate-900 text-white border-slate-600"
+                : "bg-slate-800 text-gray-300 border-slate-700 hover:bg-slate-700"
+            }`}
+          >
+            Output
+          </button>
+        </div>
+      </div>
+
+      {activeTab === "code" && (
+        <div className="px-4 pb-4" />
+      )}
+
+      {activeTab === "input" && (
+        <div className="px-4 pb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-semibold text-gray-200">Standard Input (stdin)</h4>
             <button
               onClick={() => setStdin("")}
-              className="text-xs text-gray-500 hover:text-gray-700"
+              disabled={readOnly || running || submitting}
+              className="text-xs text-gray-300 hover:text-white disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
             >
               Clear
             </button>
@@ -298,75 +340,70 @@ export default function CodeEditor({
             value={stdin}
             onChange={(e) => setStdin(e.target.value)}
             disabled={readOnly || running || submitting}
-            placeholder="Enter input for your program (optional)"
-            className="w-full p-3 font-mono text-sm border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            placeholder="Enter input here..."
+            className="w-full p-3 font-mono text-sm border border-slate-700 bg-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-colors"
             rows={3}
           />
         </div>
+      )}
 
-        {/* Output Section */}
-        <div>
-          <div className="bg-gray-50 px-4 py-2 flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-gray-700">Output</h4>
-            <button
-              onClick={() => setShowOutput(!showOutput)}
-              className="text-xs text-gray-500 hover:text-gray-700"
-            >
-              {showOutput ? "Hide" : "Show"}
-            </button>
+      {activeTab === "output" && (
+        <div className="px-4 pb-4">
+          <div className="mb-2">
+            <h4 className="text-sm font-semibold text-gray-200">Output</h4>
           </div>
-          {showOutput && (
-            <div className="p-4 bg-gray-900 text-green-400 font-mono text-sm max-h-64 overflow-auto">
-              <pre className="whitespace-pre-wrap">{output || "No output yet. Run your code to see results."}</pre>
-            </div>
-          )}
+          <div className="bg-slate-950 border border-slate-700 rounded-xl p-3 font-mono text-sm text-green-200 max-h-64 overflow-auto">
+            <pre className="whitespace-pre-wrap">
+              {output || "No output yet. Run your code to see results."}
+            </pre>
+          </div>
         </div>
+      )}
 
-        {/* Test Results */}
-        {testResults && testResults.length > 0 && (
-          <div className="border-t border-gray-300 bg-gray-50 p-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Test Case Results</h4>
-            <div className="space-y-2">
-              {testResults.map((result, index) => (
-                <div
-                  key={index}
-                  className={`p-3 rounded border ${
-                    result.passed
-                      ? "bg-green-50 border-green-200"
-                      : "bg-red-50 border-red-200"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <span
-                      className={`text-sm font-semibold ${
-                        result.passed ? "text-green-700" : "text-red-700"
-                      }`}
-                    >
-                      Test Case {index + 1}: {result.passed ? "✓ Passed" : "✗ Failed"}
-                    </span>
-                  </div>
-                  <div className="text-xs text-gray-600 space-y-1">
-                    <div>
-                      <strong>Input:</strong> <code className="bg-gray-100 px-1 rounded">{result.input || "N/A"}</code>
-                    </div>
-                    <div>
-                      <strong>Expected:</strong> <code className="bg-gray-100 px-1 rounded">{result.expectedOutput || "N/A"}</code>
-                    </div>
-                    <div>
-                      <strong>Got:</strong> <code className="bg-gray-100 px-1 rounded">{result.stdout || "N/A"}</code>
-                    </div>
-                    {result.stderr && (
-                      <div>
-                        <strong>Error:</strong> <code className="bg-red-100 px-1 rounded text-red-700">{result.stderr}</code>
-                      </div>
-                    )}
-                  </div>
+      {/* Test Results */}
+      {testResults && testResults.length > 0 && (
+        <div className="bg-slate-800/40 border-t border-slate-700 p-4">
+          <h4 className="text-sm font-semibold text-gray-200 mb-3">Test Case Results</h4>
+          <div className="space-y-2">
+            {testResults.map((result, index) => (
+              <div
+                key={index}
+                className={`p-3 rounded-xl border ${
+                  result.passed
+                    ? "bg-emerald-500/10 border-emerald-500/20"
+                    : "bg-red-500/10 border-red-500/20"
+                }`}
+              >
+                <div className="mb-2">
+                  <span className={`text-sm font-semibold ${result.passed ? "text-emerald-200" : "text-red-200"}`}>
+                    Test Case {index + 1}: {result.passed ? "Passed" : "Failed"}
+                  </span>
                 </div>
-              ))}
-            </div>
+                <div className="text-xs text-gray-300 space-y-1">
+                  <div>
+                    <strong className="text-gray-200">Input:</strong>{" "}
+                    <code className="bg-slate-900 px-2 py-0.5 rounded">{result.input || "N/A"}</code>
+                  </div>
+                  <div>
+                    <strong className="text-gray-200">Expected:</strong>{" "}
+                    <code className="bg-slate-900 px-2 py-0.5 rounded">{result.expectedOutput || "N/A"}</code>
+                  </div>
+                  <div>
+                    <strong className="text-gray-200">Got:</strong>{" "}
+                    <code className="bg-slate-900 px-2 py-0.5 rounded">{result.stdout || "N/A"}</code>
+                  </div>
+                  {result.stderr && (
+                    <div>
+                      <strong className="text-gray-200">Error:</strong>{" "}
+                      <code className="bg-red-900/20 px-2 py-0.5 rounded text-red-200">{result.stderr}</code>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

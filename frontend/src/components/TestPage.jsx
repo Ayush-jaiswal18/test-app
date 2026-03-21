@@ -3,39 +3,9 @@ import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import Proctoring from './Proctoring';
 import CodeEditor from './CodeEditor';
+import ReactMarkdown from 'react-markdown';
 
 const SUPPORTED_LANGUAGES = ['javascript', 'python', 'cpp', 'java'];
-
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-// Extracts markdown sections like:
-// **Constraints:**
-// ...content...
-// **Next Heading:**
-const extractMarkdownSection = (text, heading) => {
-  if (!text) return '';
-  const h = escapeRegExp(heading);
-  const re = new RegExp(
-    `\\*\\*${h}:\\*\\*\\s*\\n([\\s\\S]*?)(?=\\n\\n\\*\\*[^*]+:\\*\\*|$)`,
-    'm'
-  );
-  const match = text.match(re);
-  return match?.[1]?.trim() || '';
-};
-
-const stripMarkdownSections = (text, headings) => {
-  if (!text) return '';
-  let out = text;
-  headings.forEach((heading) => {
-    const h = escapeRegExp(heading);
-    const re = new RegExp(
-      `\\*\\*${h}:\\*\\*\\s*\\n[\\s\\S]*?(?=\\n\\n\\*\\*[^*]+:\\*\\*|$)`,
-      'm'
-    );
-    out = out.replace(re, '');
-  });
-  return out.trim();
-};
 
 const TestPage = () => {
   const { testId, shareLink } = useParams();
@@ -44,8 +14,8 @@ const TestPage = () => {
   const [studentEmail, setStudentEmail] = useState('');
   const [rollNumber, setRollNumber] = useState('');
   const [answers, setAnswers] = useState([]);
-  const [codingAnswers, setCodingAnswers] = useState([]); // Store coding question answers
-  const [descriptiveAnswers, setDescriptiveAnswers] = useState([]); // Store descriptive question answers
+  const [codingAnswers, setCodingAnswers] = useState([]); // 🆕 Store coding question answers
+  const [descriptiveAnswers, setDescriptiveAnswers] = useState([]); // 🆕 Store descriptive question answers
   const [questionMode, setQuestionMode] = useState('mcq'); // 'mcq' or 'coding'
   const [currentCodingQuestion, setCurrentCodingQuestion] = useState(0);
 
@@ -103,12 +73,12 @@ const TestPage = () => {
         currentSection,
         currentQuestion,
         answers,
-        codingAnswers, // Include coding answers
-        descriptiveAnswers, // Include descriptive answers
+        codingAnswers, // 🆕 Include coding answers
+        descriptiveAnswers, // 🆕 Include descriptive answers
         timeSpent
       };
 
-      console.log('SAVING PROGRESS:', {
+      console.log('🔄 SAVING PROGRESS:', {
         answersCount: answers.length,
         currentSection,
         currentQuestion,
@@ -122,9 +92,9 @@ const TestPage = () => {
       });
 
       await axios.post(`${API_URL}/api/progress/save`, progressData);
-      console.log('Progress saved successfully');
+      console.log('✅ Progress saved successfully');
     } catch (err) {
-      console.error('Failed to save progress:', err);
+      console.error('❌ Failed to save progress:', err);
     }
   }, [started, studentEmail, studentName, rollNumber, test, currentSection, currentQuestion, answers, timeSpent, API_URL]);
 
@@ -202,7 +172,7 @@ const TestPage = () => {
         const progressResponse = await axios.get(`${API_URL}/api/progress/${test._id}/${email}`);
         const savedData = progressResponse.data.data;
 
-        console.log('RETRIEVED PROGRESS:', {
+        console.log('📥 RETRIEVED PROGRESS:', {
           answersCount: savedData.answers?.length || 0,
           currentSection: savedData.currentSection,
           currentQuestion: savedData.currentQuestion,
@@ -365,6 +335,33 @@ const TestPage = () => {
     return () => clearInterval(autoSaveTimer);
   }, [started, saveProgress]);
 
+  // ═══ REQUEST FULLSCREEN ═══
+  const requestFullscreen = async () => {
+    try {
+      const element = document.documentElement;
+      if (element.requestFullscreen) {
+        await element.requestFullscreen();
+        return true;
+      } else if (element.mozRequestFullScreen) {
+        await element.mozRequestFullScreen();
+        return true;
+      } else if (element.webkitRequestFullscreen) {
+        await element.webkitRequestFullscreen();
+        return true;
+      } else if (element.msRequestFullscreen) {
+        await element.msRequestFullscreen();
+        return true;
+      } else {
+        alert('Fullscreen is not supported on your browser. Please update your browser to take this test.');
+        return false;
+      }
+    } catch (err) {
+      console.error('Fullscreen request failed:', err);
+      alert('Unable to enter fullscreen mode. You must use fullscreen mode to take this test. Please ensure you allow fullscreen in your browser settings.');
+      return false;
+    }
+  };
+
   const handleStart = async () => {
     if (!agreedToInstructions) {
       alert('Please read and agree to the test instructions before starting the test.');
@@ -372,6 +369,12 @@ const TestPage = () => {
     }
 
     if (studentName.trim() && studentEmail.trim() && rollNumber.trim()) {
+      // Request fullscreen before starting test
+      const fullscreenGranted = await requestFullscreen();
+      if (!fullscreenGranted) {
+        return; // Test won't start without fullscreen
+      }
+
       await checkExistingProgress(studentEmail);
 
       // If no dialog is shown (no existing progress/submission), start fresh
@@ -415,7 +418,13 @@ const TestPage = () => {
     }
   };
 
-  const handleResumeTest = () => {
+  const handleResumeTest = async () => {
+    // Request fullscreen before resuming test
+    const fullscreenGranted = await requestFullscreen();
+    if (!fullscreenGranted) {
+      return; // Test won't resume without fullscreen
+    }
+
     if (savedProgress) {
       const resumeSection = savedProgress.currentSection || 0;
       setCurrentSection(resumeSection);
@@ -444,7 +453,7 @@ const TestPage = () => {
 
       setAnswers(cleanAnswers);
 
-      // Restore coding answers
+      // 🆕 Restore coding answers
       const cleanCodingAnswers = (savedProgress.codingAnswers || []).filter(answer =>
         answer &&
         answer.hasOwnProperty('codingQuestionIndex') &&
@@ -462,7 +471,7 @@ const TestPage = () => {
       setTimeLeft(remainingTime);
       setIsResumed(true);
 
-      console.log('RESUMING TEST with details:', {
+      console.log('🔄 RESUMING TEST with details:', {
         totalDuration: totalDurationSeconds,
         timeAlreadySpent,
         remainingTime,
@@ -475,7 +484,7 @@ const TestPage = () => {
 
       // Debug: Show what answers are being restored
       cleanAnswers.forEach((answer, index) => {
-        console.log(`Restored Answer ${index}:`, {
+        console.log(`🔸 Restored Answer ${index}:`, {
           sectionIndex: answer.sectionIndex,
           questionIndex: answer.questionIndex,
           selectedOption: answer.selectedOption
@@ -484,14 +493,14 @@ const TestPage = () => {
 
       // Debug: After state is set, check what should be marked
       setTimeout(() => {
-        console.log('POST-RESUME VERIFICATION:');
+        console.log('🎯 POST-RESUME VERIFICATION:');
         if (test && test.sections) {
           test.sections.forEach((section, sIdx) => {
             section.questions.forEach((question, qIdx) => {
               const matchingAnswer = cleanAnswers.find(a =>
                 a.sectionIndex === sIdx && a.questionIndex === qIdx
               );
-              console.log(`Section ${sIdx}, Q${qIdx}: ${matchingAnswer ? 'HAS ANSWER' : 'NO ANSWER'}`,
+              console.log(`Section ${sIdx}, Q${qIdx}: ${matchingAnswer ? '✅ HAS ANSWER' : '❌ NO ANSWER'}`,
                 matchingAnswer ? `(Option: ${matchingAnswer.selectedOption})` : ''
               );
             });
@@ -504,7 +513,13 @@ const TestPage = () => {
     setStarted(true);
   };
 
-  const handleStartFresh = () => {
+  const handleStartFresh = async () => {
+    // Request fullscreen before starting fresh test
+    const fullscreenGranted = await requestFullscreen();
+    if (!fullscreenGranted) {
+      return; // Test won't start without fullscreen
+    }
+
     // Reset all progress for fresh start
     setCurrentSection(0);
     setCurrentQuestion(0);
@@ -547,7 +562,7 @@ const TestPage = () => {
         questionType = test.questions[qIdx].questionType;
       }
 
-      console.log('Handling Answer Change:', { sIdx, qIdx, value, questionType });
+      console.log('📝 Handling Answer Change:', { sIdx, qIdx, value, questionType });
 
       // Only convert to number if it's strictly a digit-only string AND NOT a text-based question
       const isTextQuestion = questionType === 'fill-blank' || questionType === 'descriptive';
@@ -602,7 +617,7 @@ const TestPage = () => {
       }
 
       console.log('All answers after change:', cleanAnswers);
-      console.log('ANSWER CHANGED:', {
+      console.log('🔥 ANSWER CHANGED:', {
         originalIndices: { sectionIndex, questionIndex, optionIndex: selectedOption }, // Use selectedOption here
         convertedIndices: { sIdx, qIdx, oIdx: selectedOption }, // Use selectedOption here
         answerObj,
@@ -616,7 +631,7 @@ const TestPage = () => {
 
       // Delayed save
       setTimeout(() => {
-        console.log('Delayed save triggered for answer:', answerObj);
+        console.log('🔄 Delayed save triggered for answer:', answerObj);
         if (started && studentEmail && test) {
           axios.post(`${API_URL}/api/progress/save`, {
             studentEmail,
@@ -626,23 +641,23 @@ const TestPage = () => {
             currentSection,
             currentQuestion,
             answers: cleanAnswers,
-            codingAnswers, // Include coding answers
+            codingAnswers, // 🆕 Include coding answers
             timeSpent
           }).then(() => {
-            console.log('Delayed save completed');
+            console.log('✅ Delayed save completed');
           }).catch(err => {
-            console.error('Delayed save failed:', err);
+            console.error('❌ Delayed save failed:', err);
           });
         }
       }, 1000);
 
     } catch (err) {
-      console.error('Error in handleAnswerChange:', err);
+      console.error('❌ Error in handleAnswerChange:', err);
     }
 
   };
 
-  // Handle coding answer changes
+  // 🆕 Handle coding answer changes
   const handleCodingAnswerChange = (sectionIndex, codingQuestionIndex, code, language) => {
     const sIdx = parseInt(sectionIndex, 10);
     const cqIdx = parseInt(codingQuestionIndex, 10);
@@ -682,13 +697,13 @@ const TestPage = () => {
           descriptiveAnswers,
           timeSpent
         }).catch(err => {
-          console.error('Failed to save coding answer:', err);
+          console.error('❌ Failed to save coding answer:', err);
         });
       }, 1000);
     }
   };
 
-  // Handle descriptive answer changes
+  // 🆕 Handle descriptive answer changes
   const handleDescriptiveAnswerChange = (sectionIndex, questionIndex, text) => {
     const sIdx = parseInt(sectionIndex, 10);
     const qIdx = parseInt(questionIndex, 10);
@@ -727,7 +742,7 @@ const TestPage = () => {
           descriptiveAnswers: cleanAnswers,
           timeSpent
         }).catch(err => {
-          console.error('Failed to save descriptive answer:', err);
+          console.error('❌ Failed to save descriptive answer:', err);
         });
       }, 2000);
     }
@@ -746,8 +761,8 @@ const TestPage = () => {
         rollNumber,
         testId: test._id,
         answers: answers.filter(a => a !== null && a !== undefined),
-        codingAnswers: codingAnswers.filter(a => a !== null && a !== undefined), // Include coding answers
-        descriptiveAnswers: descriptiveAnswers.filter(a => a !== null && a !== undefined), // Include descriptive answers
+        codingAnswers: codingAnswers.filter(a => a !== null && a !== undefined), // 🆕 Include coding answers
+        descriptiveAnswers: descriptiveAnswers.filter(a => a !== null && a !== undefined), // 🆕 Include descriptive answers
         timeSpent,
         isResumed,
         warnings // Include warnings collected during test
@@ -871,7 +886,7 @@ const TestPage = () => {
 
           {/* Status badge */}
           <span className={`text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4 ${badgeBg}`}>
-            {isNotStarted ? 'Not Available Yet' : 'Access Denied'}
+            {isNotStarted ? '⏳ Not Available Yet' : '🚫 Access Denied'}
           </span>
 
           {/* Heading */}
@@ -1051,7 +1066,7 @@ const TestPage = () => {
                   </svg>
                 )}
                 <h2 className={`text-2xl font-bold ${isPassed ? 'text-green-700' : 'text-yellow-700'}`}>
-                  {isPassed ? 'Congratulations!' : 'Test Submitted'}
+                  {isPassed ? '🎉 Congratulations!' : '⏳ Test Submitted'}
                 </h2>
               </div>
               <p className={`text-sm ${isPassed ? 'text-green-600' : 'text-yellow-600'}`}>
@@ -1166,7 +1181,7 @@ const TestPage = () => {
                 <div>
                   <p className="text-sm font-semibold text-blue-900">Submitted on</p>
                   <p className="text-sm text-blue-700">{new Date(score.submittedAt).toLocaleString()}</p>
-                  <p className="text-xs text-blue-600 mt-2">Your test submission has been recorded.</p>
+                  <p className="text-xs text-blue-600 mt-2">✓ Your test submission has been recorded.</p>
                 </div>
               </div>
             </div>
@@ -1212,7 +1227,7 @@ const TestPage = () => {
   if (!started && !showInstructions) {
     return (
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-lg mx-auto">
-        <h1 className="text-3xl font-bold mb-2 text-center">{test.title}</h1>
+        <h1 className="text-3xl font-bold mb-2">{test.title}</h1>
         <p className="text-gray-600 mb-6">{test.description}</p>
         {test.startTime && test.endTime && (
           <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
@@ -1253,7 +1268,7 @@ const TestPage = () => {
         {test.allowResume && (
           <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-sm text-blue-800">
-              This test supports resume functionality. If you get disconnected, you can continue from where you left off using the same email address.
+              📝 This test supports resume functionality. If you get disconnected, you can continue from where you left off using the same email address.
             </p>
           </div>
         )}
@@ -1277,7 +1292,7 @@ const TestPage = () => {
   if (!started && showInstructions) {
     return (
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-4 text-center">{test.title}</h1>
+        <h1 className="text-3xl font-bold mb-4">{test.title}</h1>
         <h2 className="text-2xl font-semibold mb-4">Test Instructions</h2>
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="space-y-3 text-gray-700">
@@ -1304,6 +1319,17 @@ const TestPage = () => {
             )}
           </div>
         </div>
+
+        {/* Fullscreen Requirement Warning */}
+        <div className="mb-6 p-4 bg-red-50 border-2 border-red-400 rounded-lg">
+          <p className="text-sm font-semibold text-red-800 flex items-center gap-2">
+            <span className="text-lg">⚠️</span> FULLSCREEN REQUIRED
+          </p>
+          <p className="text-sm text-red-700 mt-2">
+            This test must be taken in fullscreen mode to ensure exam integrity. When you click "Start Test", you will be prompted to enter fullscreen mode. Fullscreen is mandatory - the test cannot start without it.
+          </p>
+        </div>
+
         <div className="mb-6">
           <label className="flex items-center space-x-3 cursor-pointer">
             <input
@@ -1349,7 +1375,7 @@ const TestPage = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="bg-white p-8 rounded-lg shadow-lg max-w-2xl w-full">
-          <h1 className="text-3xl font-bold mb-2 text-center">{test.title}</h1>
+          <h1 className="text-3xl font-bold mb-2">{test.title}</h1>
           <h2 className="text-2xl font-semibold mb-6 text-blue-600">
             Section {previewSectionIndex + 1} of {test.sections.length}
           </h2>
@@ -1357,7 +1383,9 @@ const TestPage = () => {
           <div className="mb-6">
             <h3 className="text-xl font-bold mb-3">{previewSectionData.sectionTitle}</h3>
             {previewSectionData.sectionDescription && (
-              <p className="text-gray-700 mb-4">{previewSectionData.sectionDescription}</p>
+                <div className="text-gray-700 mb-4 prose prose-sm max-w-none">
+                 <ReactMarkdown>{previewSectionData.sectionDescription}</ReactMarkdown>
+                </div>
             )}
           </div>
 
@@ -1416,7 +1444,7 @@ const TestPage = () => {
       }
     });
 
-    console.log('SECTION RENDER DEBUG:', {
+    console.log('🔍 SECTION RENDER DEBUG:', {
       currentSection,
       currentQuestion,
       totalAnswers: answers.length,
@@ -1452,20 +1480,6 @@ const TestPage = () => {
     );
     const currentCodingQuestionData = hasCoding ? currentSectionData.codingQuestions[currentCodingQuestion] : null;
 
-    const codingDescriptionRaw = currentCodingQuestionData?.description || '';
-    const codingConstraints = extractMarkdownSection(codingDescriptionRaw, 'Constraints');
-    const codingInputExample =
-      currentCodingQuestionData?.sampleInput ||
-      extractMarkdownSection(codingDescriptionRaw, 'Input Format');
-    const codingOutputExample =
-      currentCodingQuestionData?.sampleOutput ||
-      extractMarkdownSection(codingDescriptionRaw, 'Output Format');
-    const codingMainDescription = stripMarkdownSections(codingDescriptionRaw, [
-      'Constraints',
-      'Input Format',
-      'Output Format'
-    ]).replace(/\\*\\*/g, '').trim();
-
     return (
       <div className="min-h-screen w-full px-6 py-6">
         <Proctoring
@@ -1482,27 +1496,29 @@ const TestPage = () => {
               Section {currentSection + 1} of {test.sections.length}: {currentSectionData.sectionTitle}
             </p>
             {currentSectionData.sectionDescription && (
-              <p className="text-sm text-gray-500">{currentSectionData.sectionDescription}</p>
+                <div className="text-sm text-gray-600 prose prose-sm max-w-none">
+                 <ReactMarkdown>{currentSectionData.sectionDescription}</ReactMarkdown>
+                </div>
             )}
           </div>
           <div className="flex justify-center gap-6 items-center py-2 bg-gray-50 rounded-lg">
             {/* Show appropriate timer based on timerType */}
             {test.timerType === 'PER_QUESTION' ? (
               <div className="text-center">
-                <div className={`text-3xl font-bold ${questionTimeLeft !== null && questionTimeLeft <= 10 ? 'text-black animate-pulse' : 'text-black'}`}>
+                <div className={`text-3xl font-bold ${questionTimeLeft !== null && questionTimeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-orange-500'}`}>
                   {questionTimeLeft !== null ? formatTime(questionTimeLeft) : '--:--'}
                 </div>
                 <div className="text-xs text-gray-600 mt-0.5">Question Time</div>
               </div>
             ) : (
               <div className="text-center">
-                <div className="text-3xl font-bold text-black">{formatTime(timeLeft)}</div>
+                <div className="text-3xl font-bold text-red-500">{formatTime(timeLeft)}</div>
                 <div className="text-xs text-gray-600 mt-0.5">Time Remaining</div>
               </div>
             )}
             <div className="w-px h-8 bg-gray-300"></div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-black">
+              <div className="text-2xl font-bold text-blue-600">
                 {questionMode === 'mcq'
                   ? `${currentQuestion + 1}/${hasMCQ ? currentSectionData.questions.length : 0}`
                   : `${currentCodingQuestion + 1}/${hasCoding ? currentSectionData.codingQuestions.length : 0}`
@@ -1517,7 +1533,7 @@ const TestPage = () => {
           {test.timerType === 'PER_QUESTION' && (
             <div className="mt-2 text-center">
               <p className="text-xs text-amber-600 font-medium bg-amber-50 py-1 px-3 rounded-full inline-block">
-                You cannot go back to previous questions in this test
+                ⚠️ You cannot go back to previous questions in this test
               </p>
             </div>
           )}
@@ -1563,51 +1579,55 @@ const TestPage = () => {
         {/* MCQ Questions */}
         {questionMode === 'mcq' && hasMCQ && (
           <div className="mb-8 flex gap-6 h-[calc(100vh-300px)]">
-            <div className="flex-1 bg-gray-50 p-8 rounded-lg border border-gray-200 overflow-y-auto">
-              <h3 className="text-sm font-bold text-gray-600 uppercase mb-4 sticky pt-0 bg-gray-50 py-2">Question</h3>
+            <div className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 p-8 rounded-xl border-2 border-blue-200 overflow-y-auto shadow-md">
+              <div className="flex items-center justify-between mb-4 sticky pt-0 bg-gradient-to-r from-blue-50 to-indigo-50 py-2">
+                <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wide">Question {currentQuestion + 1}</h3>
+                <span className={`px-3 py-1 rounded-full font-semibold text-xs ${
+                  currentAnswer?.selectedOption !== undefined 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {currentAnswer?.selectedOption !== undefined ? '✓ Answered' : 'Unanswered'}
+                </span>
+              </div>
 
               {/* Image-based question image */}
               {currentQuestionData.questionType === 'image-based' && currentQuestionData.imageUrl && (
-                <div className="mb-4">
+                <div className="mb-6">
                   <img
                     src={currentQuestionData.imageUrl}
                     alt="Question"
-                    className="max-w-full h-auto rounded-lg border border-gray-300"
+                    className="max-w-full h-auto rounded-lg border-2 border-blue-300 shadow-md"
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 </div>
               )}
 
-              <p className="text-lg font-semibold text-gray-800">
-                {currentQuestion + 1}. {currentQuestionData.questionText}
-              </p>
+              <div className="bg-white rounded-lg p-4 border-2 border-blue-300 mb-4">
+                <p className="text-lg font-bold text-gray-900">
+                  {currentQuestion + 1}. {currentQuestionData.questionText}
+                </p>
+              </div>
             </div>
-            <div className="flex-1 bg-white p-8 rounded-lg border border-gray-200 overflow-y-auto">
-              <h3 className="text-sm font-bold text-gray-600 uppercase mb-4 sticky top-0 bg-white py-2">
-                {currentQuestionData.questionType === 'fill-blank' ? 'Answer' : currentQuestionData.questionType === 'descriptive' ? 'Your Answer' : 'Options'}
-              </h3>
+            <div className="flex-1 bg-gradient-to-br from-green-50 to-emerald-50 p-8 rounded-xl border-2 border-green-200 overflow-y-auto shadow-md">
+              <div className="sticky top-0 bg-gradient-to-r from-green-50 to-emerald-50 py-2 mb-4">
+                <h3 className="text-sm font-bold text-green-600 uppercase tracking-wide">
+                  {currentQuestionData.questionType === 'fill-blank' ? 'Enter Answer' : currentQuestionData.questionType === 'descriptive' ? 'Your Answer' : 'Select Option'}
+                </h3>
+              </div>
 
               {/* Fill in the Blank */}
               {currentQuestionData.questionType === 'fill-blank' && (
                 <div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 shadow-sm transition-colors duration-200">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Your Answer
-                    </label>
-                    <input
-                      type="text"
-                      value={currentAnswer?.selectedOption || ''}
-                      onChange={(e) => handleAnswerChange(currentSection, currentQuestion, e.target.value)}
-                      placeholder="Enter the missing word(s)..."
-                      className="w-full p-3 bg-white border border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors duration-200"
-                      autoComplete="off"
-                    />
-                    <div className="mt-3 flex items-center gap-2">
-                      <p className="text-xs text-gray-600">
-                        Case Sensitive: {currentQuestionData.caseSensitive ? 'Yes' : 'No'}
-                      </p>
-                    </div>
-                  </div>
+                  <input
+                    type="text"
+                    value={currentAnswer?.selectedOption || ''}
+                    onChange={(e) => handleAnswerChange(currentSection, currentQuestion, e.target.value)}
+                    placeholder="Type your answer here"
+                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">Case Sensitive: {currentQuestionData.caseSensitive ? 'Yes' : 'No'}</p>
                 </div>
               )}
 
@@ -1627,17 +1647,27 @@ const TestPage = () => {
               {(currentQuestionData.questionType === 'mcq' ||
                 currentQuestionData.questionType === 'true-false' ||
                 currentQuestionData.questionType === 'image-based') && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {currentQuestionData.options && currentQuestionData.options.map((option, oIndex) => (
-                      <label key={oIndex} className="flex items-center p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition">
+                      <label 
+                        key={oIndex} 
+                        className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all transform hover:scale-105 ${
+                          currentAnswer?.selectedOption === oIndex
+                            ? 'border-green-500 bg-green-50 shadow-md font-semibold'
+                            : 'border-gray-300 bg-white hover:border-green-300 hover:shadow-sm'
+                        }`}
+                      >
                         <input
                           type="radio"
                           name={`section-${currentSection}-question-${currentQuestion}`}
-                          className="mr-3 w-4 h-4 flex-shrink-0"
+                          className="mr-3 w-5 h-5 flex-shrink-0 cursor-pointer"
                           checked={currentAnswer && currentAnswer.selectedOption === oIndex}
                           onChange={() => handleAnswerChange(currentSection, currentQuestion, oIndex)}
                         />
-                        <span className="text-gray-700">{option}</span>
+                        <span className="text-gray-800 flex-1">{option}</span>
+                        {currentAnswer?.selectedOption === oIndex && (
+                          <span className="ml-2 text-green-600 font-bold">✓</span>
+                        )}
                       </label>
                     ))}
                   </div>
@@ -1650,76 +1680,47 @@ const TestPage = () => {
         {
           questionMode === 'coding' && hasCoding && currentCodingQuestionData && (
             <div className="mb-8">
-              <div className="mb-4 flex items-start justify-between">
-                <div>
-                  <h3 className="text-xl font-semibold mb-1">
-                    {currentCodingQuestion + 1}. {currentCodingQuestionData.title}
-                  </h3>
-                  <p className="text-sm text-gray-500">Scroll inside either panel to view full content.</p>
+              <div className="mb-4 flex items-start justify-between px-4 py-3 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-sm">
+                      {currentCodingQuestion + 1}
+                    </span>
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      {currentCodingQuestionData.title}
+                    </h3>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">💡 Scroll inside panels to view full content</p>
                 </div>
+                <span className={`px-3 py-1 rounded-full font-semibold text-xs whitespace-nowrap ${
+                  currentCodingAnswer?.sourceCode 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {currentCodingAnswer?.sourceCode ? '✓ Attempted' : 'Unanswered'}
+                </span>
               </div>
-              <div className="flex flex-col lg:flex-row gap-4 bg-white border rounded-xl shadow-sm h-[calc(100vh-280px)]">
-                <div className="lg:w-[40%] h-full overflow-y-auto p-4 border border-slate-700 bg-slate-900 rounded-2xl shadow-lg">
-                  <div className="sticky top-0 z-10 bg-slate-900/90 backdrop-blur pb-4">
-                    <h4 className="text-xl font-semibold text-white">{currentCodingQuestionData.title}</h4>
-                    <p className="text-xs text-gray-400 mt-1">Scroll to review the full prompt and examples.</p>
+              <div className="flex flex-col lg:flex-row gap-4 bg-white border-2 border-gray-300 rounded-xl shadow-md h-[calc(100vh-280px)]">
+                <div className="lg:w-1/2 h-full overflow-y-auto p-4 border-b lg:border-b-0 lg:border-r">
+                  <h4 className="text-lg font-semibold mb-3 text-gray-800">Problem Statement</h4>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-700 whitespace-pre-wrap">
+                    {currentCodingQuestionData.description}
                   </div>
-
-                  <div className="mt-4 space-y-4 pb-4">
-                    {/* Description */}
-                    <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h5 className="text-sm font-semibold text-gray-200">Description</h5>
-                      </div>
-                      <div className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
-                        {codingMainDescription || currentCodingQuestionData.description}
-                      </div>
+                  {currentCodingQuestionData.sampleInput && (
+                    <div className="mt-4">
+                      <h5 className="text-sm font-semibold text-gray-600 mb-1">Sample Input</h5>
+                      <pre className="bg-gray-900 text-green-300 text-sm rounded-lg p-3 overflow-x-auto">{currentCodingQuestionData.sampleInput}</pre>
                     </div>
-
-                    {/* Constraints */}
-                    {codingConstraints && (
-                      <>
-                        <div className="border-t border-slate-700" />
-                        <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
-                          <h5 className="text-sm font-semibold text-gray-200 mb-3">Constraints</h5>
-                          <div className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
-                            {codingConstraints.replace(/\\*\\*/g, '')}
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {/* Examples */}
-                    {(codingInputExample || codingOutputExample) && (
-                      <>
-                        <div className="border-t border-slate-700" />
-                        <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-4">
-                          <h5 className="text-sm font-semibold text-gray-200 mb-3">Examples</h5>
-                          <div className="space-y-3">
-                            {codingInputExample && (
-                              <div>
-                                <div className="text-xs font-semibold text-gray-200 mb-1">Input</div>
-                                <pre className="bg-slate-950 text-green-200 text-sm rounded-xl p-3 border border-slate-700 overflow-x-auto whitespace-pre-wrap">
-                                  {codingInputExample}
-                                </pre>
-                              </div>
-                            )}
-                            {codingOutputExample && (
-                              <div>
-                                <div className="text-xs font-semibold text-gray-200 mb-1">Output</div>
-                                <pre className="bg-slate-950 text-green-200 text-sm rounded-xl p-3 border border-slate-700 overflow-x-auto whitespace-pre-wrap">
-                                  {codingOutputExample}
-                                </pre>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  )}
+                  {currentCodingQuestionData.sampleOutput && (
+                    <div className="mt-3">
+                      <h5 className="text-sm font-semibold text-gray-600 mb-1">Sample Output</h5>
+                      <pre className="bg-gray-900 text-green-300 text-sm rounded-lg p-3 overflow-x-auto">{currentCodingQuestionData.sampleOutput}</pre>
+                    </div>
+                  )}
                 </div>
 
-                <div className="lg:w-[60%] h-full overflow-y-auto p-4 flex flex-col gap-4 bg-slate-900 rounded-2xl border border-slate-700 shadow-lg">
+                <div className="lg:w-1/2 h-full overflow-y-auto p-4 flex flex-col gap-4">
                   <div className="flex-1 min-h-[420px]">
                     <CodeEditor
                       key={`section-${currentSection}-coding-${currentCodingQuestion}`}
@@ -1738,28 +1739,23 @@ const TestPage = () => {
                       }
                     />
                   </div>
-
                   {currentCodingQuestionData.testCases && currentCodingQuestionData.testCases.length > 0 && (
-                    <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4">
-                      <h4 className="text-sm font-semibold text-gray-200 mb-3">Test Cases</h4>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Test Cases</h4>
                       <div className="space-y-3">
                         {currentCodingQuestionData.testCases.map((tc, idx) => (
-                          <div key={idx} className="bg-slate-900/40 border border-slate-700 rounded-2xl p-3">
-                            <div className="flex justify-between text-xs text-gray-400 mb-2">
+                          <div key={idx} className="bg-white border rounded-lg p-3 shadow-sm">
+                            <div className="flex justify-between text-xs text-gray-500 mb-2">
                               <span>Test Case {idx + 1}</span>
                               <span>Weight: {tc.weight || 1}</span>
                             </div>
                             <div className="mb-2">
-                              <p className="text-xs font-semibold text-gray-200 mb-1">Input</p>
-                              <pre className="bg-slate-950 text-green-200 text-xs rounded-xl p-2 overflow-x-auto border border-slate-700 whitespace-pre-wrap">
-                                {tc.input || 'N/A'}
-                              </pre>
+                              <p className="text-xs font-semibold text-gray-600 mb-1">Input</p>
+                              <pre className="bg-gray-900 text-green-300 text-xs rounded p-2 overflow-x-auto">{tc.input || 'N/A'}</pre>
                             </div>
                             <div>
-                              <p className="text-xs font-semibold text-gray-200 mb-1">Expected Output</p>
-                              <pre className="bg-slate-950 text-green-200 text-xs rounded-xl p-2 overflow-x-auto border border-slate-700 whitespace-pre-wrap">
-                                {tc.expectedOutput || 'N/A'}
-                              </pre>
+                              <p className="text-xs font-semibold text-gray-600 mb-1">Expected Output</p>
+                              <pre className="bg-gray-900 text-green-300 text-xs rounded p-2 overflow-x-auto">{tc.expectedOutput || 'N/A'}</pre>
                             </div>
                           </div>
                         ))}
@@ -1814,7 +1810,7 @@ const TestPage = () => {
                       setCurrentCodingQuestion(Math.max(0, currentCodingQuestion - 1));
                     }}
                     disabled={currentCodingQuestion === 0}
-                    className="px-5 py-2 bg-slate-800 border border-slate-700 text-white rounded-xl hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Previous
                   </button>
@@ -1825,7 +1821,7 @@ const TestPage = () => {
                     if (test?.timerType === 'PER_QUESTION') resetQuestionTimer();
                   }}
                   disabled={currentCodingQuestion >= (hasCoding ? currentSectionData.codingQuestions.length - 1 : 0)}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-xl disabled:opacity-50 transition-colors duration-200"
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -1834,20 +1830,12 @@ const TestPage = () => {
           </div>
 
           <div className="flex space-x-2">
-            {!isFirstSection && (
-              <button
-                onClick={() => navigateSection('prev')}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-              >
-                PREVIOUS SECTION
-              </button>
-            )}
             {!isLastSection && (
               <button
                 onClick={() => navigateSection('next')}
                 className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
               >
-                NEXT SECTION
+                Next Section
               </button>
             )}
             <button
@@ -1903,13 +1891,13 @@ const TestPage = () => {
           <h1 className="text-3xl font-bold">{test.title}</h1>
           <div className="flex items-center gap-4">
             <div className="text-center">
-              <div className={`text-2xl font-semibold ${questionTimeLeft !== null && questionTimeLeft <= 10 ? 'text-black animate-pulse' : 'text-black'}`}>
+              <div className={`text-2xl font-semibold ${questionTimeLeft !== null && questionTimeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-orange-500'}`}>
                 {questionTimeLeft !== null ? formatTime(questionTimeLeft) : '--:--'}
               </div>
               <div className="text-xs text-gray-500">Question Time</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-semibold text-black">
+              <div className="text-xl font-semibold text-blue-600">
                 {currentQuestion + 1}/{test.questions.length}
               </div>
               <div className="text-xs text-gray-500">Question</div>
@@ -1920,7 +1908,7 @@ const TestPage = () => {
         {/* Warning for PER_QUESTION mode */}
         <div className="mb-4 text-center">
           <p className="text-xs text-amber-600 font-medium bg-amber-50 py-1 px-3 rounded-full inline-block">
-            You cannot go back to previous questions in this test
+            ⚠️ You cannot go back to previous questions in this test
           </p>
         </div>
 
@@ -1970,42 +1958,130 @@ const TestPage = () => {
     );
   }
 
+  // ═══ REFS FOR SCROLL-TO-QUESTION ═══
+  const questionRefs = useCallback(() => {
+    const refs = {};
+    test?.questions?.forEach((_, idx) => {
+      refs[`q-${idx}`] = React.createRef();
+    });
+    return refs;
+  }, [test?.questions?.length]);
+
+  const scrollToQuestion = (qIndex) => {
+    const element = document.getElementById(`question-${qIndex}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   // GLOBAL timer mode - show all questions at once
   return (
     <div className="min-h-screen w-full px-6 py-6">
       <div className="flex justify-between items-center mb-6 border-b pb-4">
         <h1 className="text-3xl font-bold">{test.title}</h1>
-        <div className="text-2xl font-semibold text-black">{formatTime(timeLeft)}</div>
+        <div className="text-2xl font-semibold text-red-500">{formatTime(timeLeft)}</div>
       </div>
+
+      {/* Question Navigation Summary */}
+      <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+        <p className="text-sm font-semibold text-blue-900">
+          Question Navigator: 
+          <span className="ml-2 text-blue-700">
+            {answers.filter(a => a?.selectedOption !== undefined && a?.selectedOption !== null && a?.selectedOption !== '').length} / {test.questions.length} answered
+          </span>
+        </p>
+      </div>
+
       {test.questions.map((q, qIndex) => {
         const currentAnswer = answers.find(a => {
           if (!a) return false;
           return a.questionIndex === qIndex && (a.sectionIndex === undefined || a.sectionIndex === 0);
         });
 
+        const isAnswered = currentAnswer && (currentAnswer.selectedOption !== undefined && currentAnswer.selectedOption !== null && currentAnswer.selectedOption !== '');
+
         return (
-          <div key={qIndex} className="mb-8">
-            <p className="text-xl font-semibold mb-4">{qIndex + 1}. {q.questionText}</p>
+          <div 
+            key={qIndex} 
+            id={`question-${qIndex}`}
+            className={`mb-8 p-6 rounded-xl border-2 transition-all ${
+              isAnswered 
+                ? 'border-green-300 bg-green-50 shadow-md' 
+                : 'border-amber-300 bg-amber-50 shadow-sm'
+            }`}
+          >
+            {/* Question Header with Status */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                {/* Question Number Badge */}
+                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-white text-sm ${
+                  isAnswered ? 'bg-green-500' : 'bg-amber-500'
+                }`}>
+                  {qIndex + 1}
+                </span>
+                <h3 className="text-lg font-semibold text-gray-800">{q.questionText}</h3>
+              </div>
+              {/* Status Badge */}
+              <span className={`px-3 py-1 rounded-full font-semibold text-xs whitespace-nowrap ${
+                isAnswered 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-amber-100 text-amber-700'
+              }`}>
+                {isAnswered ? '✓ Answered' : '◐ Unanswered'}
+              </span>
+            </div>
+
+            {/* Options */}
             <div className="space-y-2">
               {q.options.map((option, oIndex) => (
-                <label key={oIndex} className="flex items-center p-3 border rounded-lg hover:bg-gray-100 cursor-pointer">
+                <label key={oIndex} className={`flex items-center p-4 border-2 rounded-lg hover:shadow-md cursor-pointer transition-all ${
+                  currentAnswer?.selectedOption === oIndex
+                    ? 'border-blue-400 bg-blue-50 font-semibold'
+                    : 'border-gray-200 bg-white hover:border-blue-200'
+                }`}>
                   <input
                     type="radio"
                     name={`question-${qIndex}`}
-                    className="mr-3"
+                    className="mr-3 w-4 h-4"
                     checked={currentAnswer && currentAnswer.selectedOption === oIndex}
                     onChange={() => handleAnswerChange(0, qIndex, oIndex)}
                   />
-                  {option}
+                  <span className="text-sm">{option}</span>
                 </label>
               ))}
             </div>
           </div>
         );
       })}
-      <button onClick={handleSubmit} className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition text-lg font-bold">
-        Submit Test
-      </button>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between items-center gap-4 mt-8 mb-6">
+        <button 
+          onClick={() => {
+            const allAnswered = answers.filter(a => a?.selectedOption !== undefined && a?.selectedOption !== null).length;
+            let targetQuestion = -1;
+            for (let i = 0; i < test.questions.length; i++) {
+              if (!answers[i]?.selectedOption && i !== test.questions.length - 1) {
+                targetQuestion = i;
+                break;
+              }
+            }
+            if (targetQuestion >= 0) {
+              scrollToQuestion(targetQuestion);
+            }
+          }}
+          className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-semibold"
+        >
+          ↑ Jump to Unanswered
+        </button>
+
+        <button 
+          onClick={handleSubmit} 
+          className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-lg font-bold"
+        >
+          ✓ Submit Test
+        </button>
+      </div>
     </div>
   );
 };

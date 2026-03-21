@@ -74,21 +74,52 @@ const QuestionRow = ({ q, number }) => {
 
           {/* MCQ options */}
           {q.options?.length > 0 && (
-            <div className="space-y-1">
-              {q.options.map((opt, i) => (
-                <div key={i} className={`text-sm px-3 py-2 rounded-lg border ${i === q.correctResponse
-                    ? 'bg-green-50 border-green-300 font-semibold text-green-800'
-                    : i === q.studentResponse && !q.isCorrect
-                      ? 'bg-red-50 border-red-300 text-red-700'
-                      : 'bg-gray-50 border-gray-200 text-gray-700'
-                  }`}>
-                  {opt}
-                  {i === q.correctResponse && <span className="ml-2 text-green-600">✓ Correct</span>}
-                  {i === q.studentResponse && i !== q.correctResponse && (
-                    <span className="ml-2 text-red-500">← You chose this</span>
-                  )}
-                </div>
-              ))}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Options</p>
+              {q.options.map((opt, i) => {
+                const isCorrectAnswer = i === q.correctResponse;
+                const isStudentChoice = i === q.studentResponse;
+                const isWrongChoice = isStudentChoice && !q.isCorrect;
+                
+                return (
+                  <div
+                    key={i}
+                    className={`text-sm px-4 py-3 rounded-lg border-2 transition-all ${
+                      isCorrectAnswer
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                        : isWrongChoice
+                          ? 'bg-red-50 border-red-300 text-red-900'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="flex-1">{opt}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isCorrectAnswer && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded font-semibold text-xs whitespace-nowrap">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            Correct
+                          </span>
+                        )}
+                        {isStudentChoice && (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold text-xs whitespace-nowrap ${
+                            q.isCorrect
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M10.5 1.5H7a1 1 0 00-1 1v10H3a1 1 0 000 2h3v2a1 1 0 001 1h7a1 1 0 001-1v-2h3a1 1 0 000-2h-3v-10a1 1 0 00-1-1z" />
+                            </svg>
+                            Your Choice
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -96,17 +127,25 @@ const QuestionRow = ({ q, number }) => {
           {(q.questionType === 'fill-blank' || q.questionType === 'descriptive') && (
             <div className="space-y-2 text-sm">
               {q.studentResponse ? (
-                <div className={`p-3 rounded-lg border ${q.isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                  <p className="text-xs font-semibold text-gray-500 mb-1">Your Answer</p>
-                  <p className="text-gray-800 whitespace-pre-wrap">{q.studentResponse}</p>
+                <div className={`p-3 rounded-lg border-2 ${q.isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                  <p className="text-xs font-semibold text-gray-600 mb-1">Your Answer</p>
+                  <p className={`whitespace-pre-wrap font-medium ${q.isCorrect ? 'text-emerald-800' : 'text-red-800'}`}>{q.studentResponse}</p>
                 </div>
               ) : (
-                <p className="italic text-gray-400 text-sm">No answer submitted.</p>
+                <div className="p-3 rounded-lg border-2 bg-amber-50 border-amber-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-1">Your Answer</p>
+                  <p className="italic text-amber-700 font-medium">⊘ Not answered</p>
+                </div>
               )}
               {q.correctResponse && (
-                <div className="p-3 rounded-lg border bg-green-50 border-green-200">
-                  <p className="text-xs font-semibold text-gray-500 mb-1">Accepted Answer(s)</p>
-                  <p className="text-green-800 font-medium">{q.correctResponse}</p>
+                <div className="p-3 rounded-lg border-2 bg-emerald-50 border-emerald-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-1">
+                    <svg className="w-3.5 h-3.5 inline mr-1 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Correct Answer
+                  </p>
+                  <p className="text-emerald-800 font-semibold">{q.correctResponse}</p>
                 </div>
               )}
             </div>
@@ -175,64 +214,205 @@ const StudentResultPage = () => {
   const percentage = result ? ((result.score / result.totalMarks) * 100).toFixed(1) : 0;
 
   /* ── Download PDF ── */
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     if (!result) return;
-    const pdf = new jsPDF(); let y = 10;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    let y = 10;
 
-    pdf.setFontSize(18); pdf.text(result.testTitle, 10, y); y += 10;
-    if (result.testDescription) { pdf.setFontSize(10); pdf.text(result.testDescription, 10, y); y += 7; }
+    // ═══ LOGO & HEADER ═══
+    try {
+      const img = new Image();
+      img.src = '/logo.png';
+      await new Promise((resolve) => {
+        img.onload = () => {
+          pdf.addImage(img, 'PNG', 10, y, 40, 20);
+          resolve();
+        };
+        img.onerror = resolve;
+      });
+    } catch (e) {
+      // Logo not available, continue without it
+    }
+    
+    // Title
+    pdf.setFontSize(20);
+    pdf.setTextColor(25, 118, 210); // brand blue
+    pdf.text('Test Result Certificate', 80, y + 8);
+    y += 28;
 
-    pdf.setFontSize(13); pdf.text('Student Details', 10, y); y += 8;
-    pdf.setFontSize(10);
-    pdf.text(`Name: ${result.studentName}`, 10, y); y += 6;
-    pdf.text(`Roll Number: ${result.rollNumber}`, 10, y); y += 6;
-    pdf.text(`Email: ${result.studentEmail}`, 10, y); y += 6;
-    pdf.text(`Submitted At: ${new Date(result.submittedAt).toLocaleString()}`, 10, y); y += 6;
-    pdf.text(`Time Spent: ${Math.floor(result.timeSpent / 60)} min ${result.timeSpent % 60} sec`, 10, y); y += 8;
+    // Divider
+    pdf.setDrawColor(220, 220, 220);
+    pdf.line(10, y, pageWidth - 10, y);
+    y += 6;
 
-    pdf.setFontSize(13); pdf.text(`Score: ${result.score} / ${result.totalMarks}  (${percentage}%)`, 10, y); y += 10;
+    // ═══ STUDENT DETAILS ═══
+    pdf.setFontSize(12);
+    pdf.setTextColor(50, 50, 50);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Student Information', 10, y);
+    y += 8;
 
-    /* Section breakdown */
+    pdf.setFont(undefined, 'normal');
+    pdf.setFontSize(11);
+    const detailsBox = (label, value, xPos = 10) => {
+      pdf.setTextColor(100, 100, 100);
+      pdf.setFont(undefined, 'bold');
+      pdf.text(`${label}:`, xPos, y);
+      pdf.setFont(undefined, 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(String(value), xPos + 45, y);
+      y += 7;
+    };
+
+    detailsBox('Name', result.studentName);
+    detailsBox('Roll Number', result.rollNumber);
+    detailsBox('Email', result.studentEmail);
+    detailsBox('Submitted', new Date(result.submittedAt).toLocaleString());
+    detailsBox('Time Spent', `${Math.floor(result.timeSpent / 60)} min ${result.timeSpent % 60} sec`);
+
+    y += 4;
+
+    // ═══ SCORE SECTION ═══
+    pdf.setDrawColor(220, 220, 220);
+    pdf.line(10, y, pageWidth - 10, y);
+    y += 8;
+
+    // Pass/Fail Status Badge
+    const scorePercentage = (result.score / result.totalMarks) * 100;
+    const passFail = scorePercentage >= 40 ? 'PASS' : 'FAIL';
+    const passFailColor = scorePercentage >= 40 ? [76, 175, 80] : [244, 67, 54];
+    
+    pdf.setFillColor(...passFailColor);
+    pdf.rect(10, y, 45, 10, 'F');
+    
+    pdf.setFontSize(11);
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont(undefined, 'bold');
+    pdf.text(passFail, 16, y + 6.5);
+    
+    y += 14;
+
+    // Score box with colored background
+    const scoreColor = scorePercentage >= 70 ? [76, 175, 80] : scorePercentage >= 40 ? [255, 167, 38] : [244, 67, 54];
+    
+    pdf.setFillColor(...scoreColor);
+    pdf.rect(10, y, pageWidth - 20, 20, 'F');
+    
+    pdf.setFontSize(14);
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont(undefined, 'bold');
+    pdf.text(`TOTAL SCORE: ${result.score} / ${result.totalMarks}`, 20, y + 7);
+    pdf.text(`SUCCESS RATE: ${percentage}%`, 20, y + 14);
+
+    y += 28;
+
+    // ═══ SECTION BREAKDOWN ═══
     if (result.sectionBreakdown?.length > 0) {
-      pdf.setFontSize(12); pdf.text('Section Breakdown', 10, y); y += 7;
+      pdf.setFontSize(12);
+      pdf.setTextColor(50, 50, 50);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Section-wise Breakdown', 10, y);
+      y += 7;
+
+      pdf.setFont(undefined, 'normal');
+      pdf.setFontSize(10);
       result.sectionBreakdown.forEach(sec => {
-        if (y > 280) { pdf.addPage(); y = 10; }
-        pdf.setFontSize(10);
-        pdf.text(`  ${sec.sectionTitle}: ${sec.score} / ${sec.totalMarks}`, 10, y); y += 6;
+        if (y > 270) { 
+          pdf.addPage();
+          y = 15;
+        }
+        const secPercentage = ((sec.score / sec.totalMarks) * 100).toFixed(1);
+        pdf.setTextColor(50, 50, 50);
+        pdf.text(`• ${sec.sectionTitle}: ${sec.score}/${sec.totalMarks} (${secPercentage}%)`, 15, y);
+        y += 6;
       });
       y += 4;
     }
 
-    /* Per-question detail */
-    const addSection = (title, qArr) => {
-      if (!qArr?.length) return;
-      if (y > 260) { pdf.addPage(); y = 10; }
-      pdf.setFontSize(12); pdf.text(title, 10, y); y += 7;
-      qArr.forEach((q, i) => {
-        if (y > 270) { pdf.addPage(); y = 10; }
-        const qText = pdf.splitTextToSize(`Q${i + 1}: ${q.questionText || q.title || 'Coding Question'}`, 185);
-        pdf.setFontSize(10); pdf.text(qText, 10, y); y += qText.length * 5;
-        pdf.text(`  Score: ${q.score} / ${q.maxScore}`, 10, y); y += 5;
-        if (q.feedback) {
-          const fbLines = pdf.splitTextToSize(`  Admin Feedback: ${q.feedback}`, 185);
-          pdf.text(fbLines, 10, y); y += fbLines.length * 5;
-        }
-        y += 2;
-      });
-    };
-
+    // ═══ QUESTIONS DETAIL ═══
     if (Array.isArray(result.questionDetails) && result.questionDetails.length > 0) {
+      pdf.setDrawColor(220, 220, 220);
+      pdf.line(10, y, pageWidth - 10, y);
+      y += 8;
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(50, 50, 50);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Question Analysis', 10, y);
+      y += 8;
+
+      pdf.setFont(undefined, 'normal');
+      pdf.setFontSize(9);
+
+      const addQuestionsSection = (title, questions) => {
+        if (!questions?.length) return;
+        if (y > 260) {
+          pdf.addPage();
+          y = 15;
+        }
+
+        pdf.setFont(undefined, 'bold');
+        pdf.setFontSize(10);
+        pdf.setTextColor(25, 118, 210);
+        pdf.text(title, 10, y);
+        y += 6;
+
+        pdf.setFont(undefined, 'normal');
+        pdf.setFontSize(9);
+        questions.forEach((q, idx) => {
+          if (y > 275) {
+            pdf.addPage();
+            y = 15;
+          }
+
+          // Question number and type
+          const statusColor = q.isCorrect === true ? [76, 175, 80] : q.isCorrect === false ? [244, 67, 54] : [255, 167, 38];
+          pdf.setFillColor(...statusColor);
+          pdf.circle(13, y, 2);
+          
+          pdf.setTextColor(0, 0, 0);
+          const qType = q.questionType?.replace('-', ' ').toUpperCase() || 'QUESTION';
+          const qText = pdf.splitTextToSize(`Q${idx + 1}: ${q.questionText || q.title || 'Coding Question'} [${qType}]`, 165);
+          pdf.text(qText, 15, y);
+          y += qText.length * 3.5;
+
+          // Score
+          const scoreStatus = q.isCorrect === true ? '✓ Correct' : q.isCorrect === false ? '✗ Incorrect' : '◐ Partial';
+          pdf.setTextColor(100, 100, 100);
+          pdf.text(`Score: ${q.score}/${q.maxScore} ${scoreStatus}`, 15, y);
+          y += 4;
+
+          // Feedback if exists
+          if (q.feedback) {
+            pdf.setTextColor(80, 80, 80);
+            const fbLines = pdf.splitTextToSize(`Feedback: ${q.feedback}`, 165);
+            pdf.text(fbLines, 15, y);
+            y += fbLines.length * 3;
+          }
+
+          y += 3;
+        });
+      };
+
       if (result.questionDetails[0]?.questions) {
-        /* sectioned */
+        // Sectioned format
         result.questionDetails.forEach(sec => {
-          addSection(`Section: ${sec.sectionTitle}`, sec.questions);
+          addQuestionsSection(`Section: ${sec.sectionTitle}`, sec.questions);
         });
       } else {
-        addSection('Questions', result.questionDetails);
+        // Flat format
+        addQuestionsSection('Questions', result.questionDetails);
       }
     }
 
-    pdf.save(`${result.studentName}_Result.pdf`);
+    // ═══ FOOTER ═══
+    pdf.setFontSize(8);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text('Generated on ' + new Date().toLocaleString() + ' | This is an official result certificate', 10, pageHeight - 8);
+
+    pdf.save(`${result.studentName}_Result_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   /* ── Normalise question detail (sectioned vs flat) ── */
@@ -345,17 +525,28 @@ const StudentResultPage = () => {
 
             {/* Score card */}
             <div className="bg-white/90 backdrop-blur rounded-3xl border border-slate-200 shadow-card p-8 flex flex-col items-center justify-center text-center">
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide mb-3">Your Score</p>
+              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide mb-4">Your Score</p>
+              
+              {/* Pass/Fail Status */}
+              <div className={`mb-4 px-4 py-2 rounded-full font-bold text-lg ${percentage >= 40 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                {percentage >= 40 ? '✓ PASS' : '✗ FAIL'}
+              </div>
+
+              {/* Percentage Circle */}
               <div className={`w-32 h-32 rounded-3xl flex items-center justify-center text-3xl font-bold shadow-card mb-4
                 ${percentage >= 70 ? 'bg-emerald-50 text-emerald-700' : percentage >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'}`}>
                 {percentage}%
               </div>
+
+              {/* Score Fraction */}
               <p className="text-4xl font-bold text-brand-primary">
                 {result.score}
                 <span className="text-lg text-slate-400"> / {result.totalMarks}</span>
               </p>
-              <p className={`mt-2 text-sm font-semibold ${percentage >= 70 ? 'text-emerald-600' : percentage >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
-                {percentage >= 70 ? '🎉 Excellent!' : percentage >= 40 ? '👍 Good Effort' : '📚 Needs Improvement'}
+
+              {/* Performance Message */}
+              <p className={`mt-3 text-sm font-semibold ${percentage >= 70 ? 'text-emerald-600' : percentage >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                {percentage >= 70 ? '🎉 Excellent Performance!' : percentage >= 40 ? '✓ Satisfactory Performance' : '⚠️ Needs Improvement'}
               </p>
             </div>
           </div>
